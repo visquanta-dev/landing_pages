@@ -1,0 +1,224 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import type { Dealership } from '@/lib/supabase'
+import DealerForm from '@/components/DealerForm'
+
+export default function DashboardPage() {
+  const [dealerships, setDealerships] = useState<Dealership[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState<Dealership | null>(null)
+  const [showScraper, setShowScraper] = useState(false)
+  const [scrapeUrl, setScrapeUrl] = useState('')
+  const [scraping, setScraping] = useState(false)
+  const [scrapeData, setScrapeData] = useState<any>(null)
+  const [scrapeError, setScrapeError] = useState('')
+
+  useEffect(() => { fetchDealerships() }, [])
+
+  async function fetchDealerships() {
+    setLoading(true)
+    const res = await fetch('/api/dealerships')
+    const data = await res.json()
+    setDealerships(Array.isArray(data) ? data : [])
+    setLoading(false)
+  }
+
+  async function handleDelete(id: string, name: string) {
+    if (!confirm(`Delete ${name}? This cannot be undone.`)) return
+    await fetch('/api/dealerships', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    fetchDealerships()
+  }
+
+  function handleEdit(d: Dealership) {
+    setEditing(d)
+    setScrapeData(null)
+    setShowForm(true)
+  }
+
+  function handleFormClose() {
+    setShowForm(false)
+    setEditing(null)
+    setScrapeData(null)
+    fetchDealerships()
+  }
+
+  async function handleScrape() {
+    if (!scrapeUrl.trim()) return
+    setScraping(true)
+    setScrapeError('')
+    setScrapeData(null)
+    try {
+      const res = await fetch('/api/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: scrapeUrl }),
+      })
+      const data = await res.json()
+      if (data.error) {
+        setScrapeError(data.error)
+      } else {
+        setScrapeData(data)
+        setShowScraper(false)
+        setEditing(null)
+        setShowForm(true)
+      }
+    } catch (e: any) {
+      setScrapeError(e.message || 'Scrape failed')
+    }
+    setScraping(false)
+  }
+
+  function handleNewManual() {
+    setEditing(null)
+    setScrapeData(null)
+    setShowScraper(false)
+    setShowForm(true)
+  }
+
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Dealership Pages</h1>
+          <p className="text-sm text-white/40 mt-1">
+            {dealerships.length} dealership{dealerships.length !== 1 ? 's' : ''} configured
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={handleNewManual}
+            className="text-sm font-medium text-white/50 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] px-4 py-2.5 rounded-lg transition-all"
+          >
+            + Manual
+          </button>
+          <button
+            onClick={() => { setShowScraper(true); setScrapeUrl(''); setScrapeError(''); setScrapeData(null) }}
+            className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-red-600/20 flex items-center gap-2"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Scrape Website
+          </button>
+        </div>
+      </div>
+
+      {/* Scraper Modal */}
+      {showScraper && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="bg-[#111] border border-white/[0.08] rounded-2xl w-full max-w-lg shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+              <div>
+                <h2 className="font-semibold text-lg">Import from Website</h2>
+                <p className="text-xs text-white/40 mt-0.5">Paste the dealer's website URL and we'll scrape everything</p>
+              </div>
+              <button onClick={() => setShowScraper(false)} className="text-white/30 hover:text-white text-xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/[0.04] transition-all">✕</button>
+            </div>
+            <div className="px-6 py-6 space-y-4">
+              <div>
+                <label className="block text-[11px] font-semibold text-white/40 uppercase tracking-widest mb-1.5">Dealer Website URL</label>
+                <input
+                  className="w-full bg-[#0A0A0A] border border-white/[0.08] rounded-lg px-4 py-3 text-sm text-white placeholder-white/20 focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20 outline-none transition-all"
+                  value={scrapeUrl}
+                  onChange={e => setScrapeUrl(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleScrape()}
+                  placeholder="https://www.cloningertoyota.com"
+                  autoFocus
+                />
+              </div>
+              {scrapeError && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-sm text-red-400">{scrapeError}</div>
+              )}
+              <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg px-4 py-3">
+                <p className="text-xs text-white/30 leading-relaxed">We'll extract: <span className="text-white/50">dealer name, brand, logo, phone numbers, address, business hours, hero images, and vehicle images.</span> You can review and edit everything before saving.</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.06]">
+              <button onClick={() => setShowScraper(false)} className="text-sm text-white/40 hover:text-white/60 transition-colors">Cancel</button>
+              <button
+                onClick={handleScrape}
+                disabled={scraping || !scrapeUrl.trim()}
+                className="text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-6 py-2.5 rounded-lg transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:transform-none flex items-center gap-2"
+              >
+                {scraping ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="60" strokeLinecap="round" className="opacity-30"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
+                    Scraping...
+                  </>
+                ) : 'Scrape & Import'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dealership Cards */}
+      {loading ? (
+        <div className="text-center py-20 text-white/30">Loading...</div>
+      ) : dealerships.length === 0 ? (
+        <div className="text-center py-20">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-2xl">🏢</div>
+          <p className="text-white/50 mb-2">No dealerships yet</p>
+          <p className="text-white/30 text-sm mb-6">Paste a dealer website URL to get started in seconds.</p>
+          <button
+            onClick={() => { setShowScraper(true); setScrapeUrl(''); setScrapeError('') }}
+            className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-6 py-3 rounded-lg transition-all inline-flex items-center gap-2"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Scrape Your First Dealer
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {dealerships.map((d) => (
+            <div key={d.id} className="bg-[#141414] border border-white/[0.06] rounded-xl p-5 hover:border-white/[0.12] transition-all group">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  {d.logo_url ? (
+                    <img src={d.logo_url} alt="" className="w-10 h-10 rounded-lg bg-white p-1 object-contain" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-white/[0.06] flex items-center justify-center text-lg">🏢</div>
+                  )}
+                  <div>
+                    <h3 className="font-semibold text-sm">{d.dealership_name}</h3>
+                    <p className="text-xs text-white/40">{d.brand}</p>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${
+                  d.is_active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-white/5 text-white/30 border border-white/10'
+                }`}>
+                  {d.is_active ? 'Live' : 'Draft'}
+                </span>
+              </div>
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center gap-2 text-xs text-white/50">
+                  <span>🌐</span>
+                  <a href={`https://${d.subdomain}.visquanta.com`} target="_blank" rel="noopener" className="hover:text-white transition-colors">{d.subdomain}.visquanta.com</a>
+                </div>
+                {d.address_city && <div className="flex items-center gap-2 text-xs text-white/50"><span>📍</span><span>{d.address_city}, {d.address_state}</span></div>}
+                {d.phone_sales && <div className="flex items-center gap-2 text-xs text-white/50"><span>📞</span><span>{d.phone_sales}</span></div>}
+                <div className="flex items-center gap-2 text-xs text-white/50"><span>🚗</span><span>{d.vehicles?.length || 0} vehicle{d.vehicles?.length !== 1 ? 's' : ''}</span></div>
+              </div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-4 h-4 rounded-full border border-white/10" style={{ backgroundColor: d.primary_color }}></div>
+                <span className="text-[11px] text-white/30 font-mono">{d.primary_color}</span>
+              </div>
+              <div className="flex gap-2 pt-3 border-t border-white/[0.06]">
+                <button onClick={() => handleEdit(d)} className="flex-1 text-xs font-medium text-white/60 hover:text-white bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] rounded-lg py-2 transition-all">Edit</button>
+                <a href={`/preview/${d.subdomain}`} target="_blank" className="flex-1 text-xs font-medium text-white/60 hover:text-white bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] rounded-lg py-2 transition-all text-center">Preview</a>
+                <button onClick={() => handleDelete(d.id, d.dealership_name)} className="text-xs font-medium text-red-400/60 hover:text-red-400 bg-red-500/[0.03] hover:bg-red-500/[0.06] border border-red-500/[0.06] rounded-lg py-2 px-3 transition-all">✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showForm && <DealerForm dealership={editing} scrapeData={scrapeData} onClose={handleFormClose} />}
+    </>
+  )
+}
