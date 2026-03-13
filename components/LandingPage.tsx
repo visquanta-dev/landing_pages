@@ -42,6 +42,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
 
   // Handle date validation
   function handleDateChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (isGym) return // gyms open 7 days
     const date = new Date(e.target.value + 'T00:00:00')
     if (date.getDay() === 0) {
       alert(`Sorry, ${d.dealership_name} is closed on Sundays. Please select another day.`)
@@ -49,15 +50,32 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
     }
   }
 
+  const isGym = d.business_type === 'gym'
   const hours = d.hours || {}
   const vehicles = d.vehicles || []
+  const services = d.services || []
   const c = d.primary_color || '#D4132A'
   const smsConsentText =
     d.sms_consent_text ||
-    'By providing your phone number, you consent to receive appointment and service-related text messages from this dealership. Message frequency may vary.'
+    (isGym
+      ? 'By providing your phone number, you consent to receive appointment and service-related text messages from this gym. Message frequency may vary.'
+      : 'By providing your phone number, you consent to receive appointment and service-related text messages from this dealership. Message frequency may vary.')
   const smsCheckboxLabel =
     d.sms_checkbox_label ||
     'I agree to receive recurring automated text messages related to my appointment or service request.'
+
+  const defaultGymServices = [
+    { name: 'Group Fitness', icon: '\u{1F3CB}\uFE0F', desc: 'High-energy classes including HIIT, cycling, yoga, and more.' },
+    { name: 'Pilates Reformer+', icon: '\u{1F9D8}', desc: 'Reformer-based Pilates for core strength, flexibility, and balance.' },
+    { name: 'Personal Training', icon: '\u{1F4AA}', desc: 'One-on-one sessions tailored to your goals with certified trainers.' },
+  ]
+  const gymServices = services.length > 0
+    ? services.map(s => ({ name: s.name, icon: '\u{1F3CB}\uFE0F', desc: s.description }))
+    : defaultGymServices
+
+  const gymTimes = ['5:00 AM','5:30 AM','6:00 AM','6:30 AM','7:00 AM','7:30 AM','8:00 AM','8:30 AM']
+  const dealerTimes = ['9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM','4:30 PM','5:00 PM','5:30 PM','6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM']
+  const times = isGym ? [...gymTimes, ...dealerTimes] : dealerTimes
 
   // Generate darker shade
   const cDark = adjustColor(c, -20)
@@ -113,8 +131,8 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           <span className="fd" style={{ fontSize: 20, fontWeight: 600, color: '#FAFAFA', letterSpacing: '-0.01em' }}>{d.dealership_name}</span>
         </a>
         <div className="lp-nav-links" style={{ display: 'flex', gap: 36, alignItems: 'center' }}>
-          {['Home', 'How It Works', 'Vehicles', 'Contact'].map((label) => {
-            const id = label === 'Home' ? '' : label === 'How It Works' ? 'how' : label === 'Contact' ? 'info' : label.toLowerCase()
+          {['Home', 'How It Works', isGym ? 'Classes & Training' : 'Vehicles', 'Contact'].map((label) => {
+            const id = label === 'Home' ? '' : label === 'How It Works' ? 'how' : label === 'Contact' ? 'info' : (isGym ? 'services' : 'vehicles')
             return (
               <a key={label} href={`#${id}`}
                 onClick={(e) => {
@@ -164,18 +182,20 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
               <div>
                 <div className="anim-up" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, animation: 'pulse 2.5s ease infinite' }} />
-                  <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: '#A0A0A0' }}>Appointment Booking</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: '#A0A0A0' }}>{isGym ? 'Fitness Center' : 'Appointment Booking'}</span>
                 </div>
                 <h1 className="fd anim-up anim-d1" style={{ fontSize: 'clamp(44px, 5.5vw, 72px)', fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.03em', marginBottom: 28 }}>
-                  We'll Get You<br /><em style={{ fontStyle: 'italic', color: c }}>Booked In</em>
+                  {isGym ? <>Your Fitness<br /><em style={{ fontStyle: 'italic', color: c }}>Starts Here</em></> : <>We'll Get You<br /><em style={{ fontStyle: 'italic', color: c }}>Booked In</em></>}
                 </h1>
                 <p className="anim-up anim-d2" style={{ fontSize: 17, color: '#A0A0A0', lineHeight: 1.75, maxWidth: 500, marginBottom: 44, fontWeight: 300 }}>
-                  Need a test drive or service appointment? Tell us what you need and we'll connect you with {d.dealership_name} to confirm the earliest available slot.
+                  {isGym
+                    ? `Ready for a trial session or membership consultation? Tell us what you need and we'll connect you with ${d.dealership_name} to get you started.`
+                    : `Need a test drive or service appointment? Tell us what you need and we'll connect you with ${d.dealership_name} to confirm the earliest available slot.`}
                 </p>
                 <div className="anim-up anim-d3 lp-hero-ctas" style={{ display: 'flex', gap: 16 }}>
                   <a href="#booking" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '20px 40px', background: c, color: '#FFFFFF', borderRadius: 8, fontSize: 17, fontWeight: 700, textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' as const, boxShadow: `0 8px 30px ${c}33`, transition: 'all 0.3s ease' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    Book an Appointment
+                    {isGym ? 'Get Started' : 'Book an Appointment'}
                   </a>
                   <a href="#how" style={{ display: 'inline-flex', alignItems: 'center', padding: '18px 36px', background: 'transparent', color: '#E8E8E8', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, fontSize: 15, fontWeight: 500, textDecoration: 'none' }}>Learn More</a>
                 </div>
@@ -189,7 +209,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                       {d.logo_url && <img src={d.logo_url} alt="" style={{ width: 44, height: 44, objectFit: 'contain', background: '#fff', borderRadius: 8, padding: 5 }} />}
                       <div>
                         <strong style={{ fontSize: 15, display: 'block', marginBottom: 2 }}>{d.dealership_name}</strong>
-                        <span style={{ fontSize: 12, color: '#666' }}>{d.address_city ? `${d.address_city}, ${d.address_state}` : ''} • New & Used Vehicles</span>
+                        <span style={{ fontSize: 12, color: '#666' }}>{d.address_city ? `${d.address_city}, ${d.address_state}` : ''}{isGym ? ' • Fitness & Wellness' : ' • New & Used Vehicles'}</span>
                       </div>
                     </div>
                   </div>
@@ -201,11 +221,15 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           {/* TRUST */}
           <section style={{ padding: 48, borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#111' }}>
             <div className="lp-trust-inner" style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', justifyContent: 'center', gap: 64 }}>
-              {[
+              {(isGym ? [
+                { icon: '🏋️', title: 'Certified Trainers', sub: 'Expert fitness professionals' },
+                { icon: '⏱️', title: 'Flexible Scheduling', sub: 'Classes from early morning to evening' },
+                { icon: '💬', title: 'SMS Confirmation', sub: 'Instant booking updates' },
+              ] : [
                 { icon: '🛡️', title: 'Verified Dealership', sub: `Authorized ${d.brand} Dealer` },
                 { icon: '⏱️', title: 'Same-Day Response', sub: 'Confirmation within hours' },
                 { icon: '💬', title: 'SMS Confirmation', sub: 'Instant booking updates' },
-              ].map((t, i) => (
+              ]).map((t, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div style={{ width: 44, height: 44, borderRadius: 10, background: `${c}14`, border: `1px solid ${c}1f`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{t.icon}</div>
                   <div>
@@ -224,11 +248,15 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
               <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 16, lineHeight: 1.1 }}>How It Works</h2>
               <p className="lp-reveal lp-d2" style={{ fontSize: 16, color: '#A0A0A0', maxWidth: 500, marginBottom: 64, fontWeight: 300, lineHeight: 1.7 }}>Three easy steps to secure your spot at {d.dealership_name}.</p>
               <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
-                {[
+                {(isGym ? [
+                  { num: '01', title: 'Choose Your Activity', desc: "Select a group fitness class, personal training session, Pilates, or schedule a gym tour." },
+                  { num: '02', title: 'Pick Your Preferred Time', desc: "Let us know when works best and we'll coordinate with the gym to match your schedule." },
+                  { num: '03', title: 'We Confirm Your Spot', desc: `We work directly with ${d.dealership_name} to get you the earliest available session and confirm via SMS.` },
+                ] : [
                   { num: '01', title: 'Tell Us What You Need', desc: "Select whether you'd like a test drive, service appointment, or have a general inquiry about a vehicle." },
                   { num: '02', title: 'Pick Your Preferred Time', desc: "Let us know when works best and we'll coordinate with the dealership to match your schedule." },
                   { num: '03', title: 'We Confirm Your Slot', desc: `We work directly with ${d.dealership_name} to get you the earliest available appointment and confirm via SMS.` },
-                ].map((s, i) => (
+                ]).map((s, i) => (
                   <div key={i} className={`lp-reveal ${i > 0 ? `lp-d${i}` : ''}`}
                     style={{ padding: '40px 32px', background: '#161616', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16 }}>
                     <div className="fd" style={{ fontSize: 48, fontWeight: 400, color: `${c}33`, lineHeight: 1, marginBottom: 20 }}>{s.num}</div>
@@ -240,8 +268,26 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
             </div>
           </section>
 
-          {/* VEHICLES */}
-          {vehicles.length > 0 && (
+          {/* VEHICLES / SERVICES */}
+          {isGym ? (
+            <section id="services" className="lp-section" style={{ padding: '120px 48px', background: '#111' }}>
+              <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+                <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>What We Offer</p>
+                <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 16, lineHeight: 1.1 }}>Classes & Training</h2>
+                <p className="lp-reveal lp-d2" style={{ fontSize: 16, color: '#A0A0A0', maxWidth: 500, marginBottom: 64, fontWeight: 300, lineHeight: 1.7 }}>Explore the programs available at {d.dealership_name}.</p>
+                <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(gymServices.length, 3)}, 1fr)`, gap: 24 }}>
+                  {gymServices.map((s, i) => (
+                    <div key={i} className={`lp-reveal ${i > 0 ? `lp-d${i}` : ''}`}
+                      style={{ background: '#161616', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: '40px 32px' }}>
+                      <div style={{ fontSize: 40, marginBottom: 20 }}>{s.icon}</div>
+                      <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>{s.name}</h3>
+                      <p style={{ fontSize: 14, color: '#A0A0A0', lineHeight: 1.7, fontWeight: 300 }}>{s.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          ) : vehicles.length > 0 && (
             <section id="vehicles" className="lp-section" style={{ padding: '120px 48px', background: '#111' }}>
               <div style={{ maxWidth: 1280, margin: '0 auto' }}>
                 <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>{d.brand} Lineup</p>
@@ -303,10 +349,19 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>What can we help you with?</label>
                   <select className="lp-input" defaultValue="">
                     <option value="" disabled>Select an option</option>
-                    <option>Schedule a Test Drive</option>
-                    <option>Book a Service Appointment</option>
-                    <option>Vehicle Inquiry</option>
-                    <option>General Question</option>
+                    {isGym ? (<>
+                      <option>Book a Group Fitness Class</option>
+                      <option>Schedule a Gym Tour</option>
+                      <option>Membership Inquiry</option>
+                      <option>Personal Training Inquiry</option>
+                      <option>Pilates Reformer+ Info</option>
+                      <option>General Question</option>
+                    </>) : (<>
+                      <option>Schedule a Test Drive</option>
+                      <option>Book a Service Appointment</option>
+                      <option>Vehicle Inquiry</option>
+                      <option>General Question</option>
+                    </>)}
                   </select>
                 </div>
                 <div className="lp-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
@@ -318,13 +373,13 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Preferred Time</label>
                     <select className="lp-input" defaultValue="">
                       <option value="" disabled>Select a time</option>
-                      {['9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM','4:30 PM','5:00 PM','5:30 PM','6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM'].map(t => <option key={t}>{t}</option>)}
+                      {times.map(t => <option key={t}>{t}</option>)}
                     </select>
                   </div>
                 </div>
                 <div style={{ marginBottom: 20 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Additional Details</label>
-                  <textarea className="lp-input" placeholder="Tell us more — vehicle of interest, type of service, etc." style={{ minHeight: 100, resize: 'vertical' }} />
+                  <textarea className="lp-input" placeholder={isGym ? "Tell us more — fitness goals, class preferences, experience level, etc." : "Tell us more — vehicle of interest, type of service, etc."} style={{ minHeight: 100, resize: 'vertical' }} />
                 </div>
 
                 {/* SMS Consent */}
@@ -359,7 +414,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           <section id="info" className="lp-section" style={{ padding: '120px 48px', background: '#111' }}>
             <div className="lp-2col" style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'start' }}>
               <div>
-                <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>Dealership Details</p>
+                <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>{isGym ? 'Gym Details' : 'Dealership Details'}</p>
                 <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 40, lineHeight: 1.1 }}>{d.dealership_name}</h2>
                 {d.address_full && (
                   <div className="lp-reveal lp-d2" style={{ display: 'flex', gap: 18, alignItems: 'flex-start', marginBottom: 32 }}>
@@ -376,7 +431,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                   <div className="lp-reveal lp-d3" style={{ display: 'flex', gap: 18, alignItems: 'flex-start', marginBottom: 32 }}>
                     <div style={{ width: 48, height: 48, borderRadius: 12, background: `${c}0f`, border: `1px solid ${c}1a`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📞</div>
                     <div>
-                      <p style={{ fontSize: 11, color: '#333', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 4, fontWeight: 600 }}>Sales</p>
+                      <p style={{ fontSize: 11, color: '#333', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 4, fontWeight: 600 }}>{isGym ? 'Phone' : 'Sales'}</p>
                       <p style={{ fontSize: 16, fontWeight: 500 }}>
                         <a href={`tel:${d.phone_sales?.replace(/\D/g, '')}`} style={{ color: '#E8E8E8', textDecoration: 'none' }}>{d.phone_sales}</a>
                       </p>
