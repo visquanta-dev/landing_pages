@@ -18,6 +18,9 @@ export default function DashboardPage() {
   const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number; subdomain: string } | null>(null)
   const [bulkResults, setBulkResults] = useState<Array<{ subdomain: string; success: boolean; error?: string; liveUrl?: string }>>([])
   const [notifications, setNotifications] = useState<Array<{ id: number; type: 'success' | 'error'; message: string }>>([])
+  const [typeFilter, setTypeFilter] = useState<'all' | 'dealership' | 'gym'>('all')
+
+  const filtered = typeFilter === 'all' ? dealerships : dealerships.filter(d => (d.business_type || 'dealership') === typeFilter)
 
   useEffect(() => { fetchDealerships() }, [])
 
@@ -150,12 +153,22 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dealership Pages</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Landing Pages</h1>
           <p className="text-sm text-white/40 mt-1">
-            {dealerships.length} dealership{dealerships.length !== 1 ? 's' : ''} configured
+            {filtered.length} of {dealerships.length} site{dealerships.length !== 1 ? 's' : ''} configured
           </p>
         </div>
         <div className="flex gap-3">
+          <select
+            value={typeFilter}
+            onChange={e => setTypeFilter(e.target.value as 'all' | 'dealership' | 'gym')}
+            className="text-sm font-medium text-white/70 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] px-3 py-2.5 rounded-lg transition-all appearance-none cursor-pointer outline-none"
+            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '28px' }}
+          >
+            <option value="all" style={{ background: '#111' }}>All Sites</option>
+            <option value="dealership" style={{ background: '#111' }}>Dealerships</option>
+            <option value="gym" style={{ background: '#111' }}>Gyms</option>
+          </select>
           <button
             onClick={handleRedeployAll}
             disabled={bulkDeploying || loading || dealerships.length === 0}
@@ -291,7 +304,7 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {dealerships.map((d) => (
+          {filtered.map((d) => (
             <div key={d.id} className="bg-[#141414] border border-white/[0.06] rounded-xl p-5 hover:border-white/[0.12] transition-all group">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
