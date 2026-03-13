@@ -27,6 +27,30 @@ export function middleware(req: NextRequest) {
     }
   }
 
+  if (subdomain === 'db') {
+    const isDashboardPage = url.pathname === '/' || url.pathname === '' || url.pathname.startsWith('/dashboard')
+    const isAuthApi = url.pathname.startsWith('/api/auth')
+    const isLoginPage = url.pathname === '/login'
+
+    if (isDashboardPage && !isAuthApi && !isLoginPage) {
+      const authCookie = req.cookies.get('vq_auth')?.value
+      const defaultPassword = 'VQ2026_@Abcd'
+      const configuredPassword = (process.env.DASHBOARD_PASSWORD || '').trim()
+      const validPasswords = new Set([defaultPassword, configuredPassword].filter(Boolean))
+
+      if (!authCookie || !validPasswords.has(authCookie)) {
+        url.pathname = '/login'
+        return NextResponse.rewrite(url)
+      }
+    }
+
+    if (url.pathname === '/' || url.pathname === '') {
+      url.pathname = '/dashboard'
+      return NextResponse.rewrite(url)
+    }
+    return NextResponse.next()
+  }
+
   // If we found a subdomain and we're on the root path, rewrite to the preview page
   if (subdomain && (url.pathname === '/' || url.pathname === '')) {
     url.pathname = `/preview/${subdomain}`

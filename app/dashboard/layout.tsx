@@ -1,8 +1,4 @@
-import type { Metadata } from 'next'
-
-export const metadata: Metadata = {
-  title: 'Dashboard | Visquanta Landing Pages',
-}
+'use client'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -16,6 +12,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <div className="flex items-center gap-4">
             <span className="text-xs text-white/40">Admin Dashboard</span>
+            <button
+              onClick={async () => {
+                await fetch('/api/auth', { method: 'DELETE' })
+                window.location.href = '/login'
+              }}
+              className="text-xs text-white/30 hover:text-white/60 transition-colors"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </header>

@@ -52,6 +52,12 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
   const hours = d.hours || {}
   const vehicles = d.vehicles || []
   const c = d.primary_color || '#D4132A'
+  const smsConsentText =
+    d.sms_consent_text ||
+    'By providing your phone number, you consent to receive appointment and service-related text messages from this dealership. Message frequency may vary.'
+  const smsCheckboxLabel =
+    d.sms_checkbox_label ||
+    'I agree to receive recurring automated text messages related to my appointment or service request.'
 
   // Generate darker shade
   const cDark = adjustColor(c, -20)
@@ -107,18 +113,38 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           <span className="fd" style={{ fontSize: 20, fontWeight: 600, color: '#FAFAFA', letterSpacing: '-0.01em' }}>{d.dealership_name}</span>
         </a>
         <div className="lp-nav-links" style={{ display: 'flex', gap: 36, alignItems: 'center' }}>
-          {['Home', 'How It Works', 'Vehicles', 'Contact'].map((label) => (
-            <a key={label} href={`#${label === 'Home' ? '' : label === 'How It Works' ? 'how' : label === 'Contact' ? 'info' : label.toLowerCase()}`}
-              onClick={() => showPage('main')}
-              style={{ color: '#A0A0A0', textDecoration: 'none', fontSize: 13, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}
-            >{label}</a>
-          ))}
-          <a href="#booking" onClick={() => showPage('main')}
+          {['Home', 'How It Works', 'Vehicles', 'Contact'].map((label) => {
+            const id = label === 'Home' ? '' : label === 'How It Works' ? 'how' : label === 'Contact' ? 'info' : label.toLowerCase()
+            return (
+              <a key={label} href={`#${id}`}
+                onClick={(e) => {
+                  e.preventDefault()
+                  if (page !== 'main') setPage('main')
+                  setTimeout(() => {
+                    if (id) document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+                    else window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }, 50)
+                }}
+                style={{ color: '#A0A0A0', textDecoration: 'none', fontSize: 13, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}
+              >{label}</a>
+            )
+          })}
+          <a href="#booking"
+            onClick={(e) => {
+              e.preventDefault()
+              if (page !== 'main') setPage('main')
+              setTimeout(() => { document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth' }) }, 50)
+            }}
             style={{ background: c, color: '#fff', padding: '11px 28px', borderRadius: 6, fontSize: 13, fontWeight: 600, textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
             Book Now
           </a>
         </div>
-        <a className="lp-mobile-cta" href="#booking" onClick={() => showPage('main')}
+        <a className="lp-mobile-cta" href="#booking"
+          onClick={(e) => {
+            e.preventDefault()
+            if (page !== 'main') setPage('main')
+            setTimeout(() => { document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth' }) }, 50)
+          }}
           style={{ display: 'none', background: c, color: '#fff', padding: '11px 28px', borderRadius: 6, fontSize: 13, fontWeight: 600, textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
           Book Now
         </a>
@@ -147,7 +173,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                   Need a test drive or service appointment? Tell us what you need and we'll connect you with {d.dealership_name} to confirm the earliest available slot.
                 </p>
                 <div className="anim-up anim-d3 lp-hero-ctas" style={{ display: 'flex', gap: 16 }}>
-                  <a href="#booking" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '18px 36px', background: c, color: '#fff', borderRadius: 8, fontSize: 15, fontWeight: 600, textDecoration: 'none' }}>
+                  <a href="#booking" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '20px 40px', background: c, color: '#FFFFFF', borderRadius: 8, fontSize: 17, fontWeight: 700, textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' as const, boxShadow: `0 8px 30px ${c}33`, transition: 'all 0.3s ease' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                     Book an Appointment
                   </a>
@@ -246,7 +272,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           <section id="booking" className="lp-section" style={{ padding: '120px 48px', position: 'relative' }}>
             <div style={{ maxWidth: 680, margin: '0 auto' }}>
               <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>Get Started</p>
-              <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 16, lineHeight: 1.1 }}>Book Your Appointment</h2>
+              <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(36px, 5vw, 56px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 16, lineHeight: 1.1, color: '#FFFFFF' }}>Book Your Appointment</h2>
               <p className="lp-reveal lp-d2" style={{ fontSize: 16, color: '#A0A0A0', maxWidth: 500, marginBottom: 64, fontWeight: 300, lineHeight: 1.7 }}>Fill in your details and we'll handle the rest.</p>
               
               <form id="lp-form" className="lp-form-card lp-reveal lp-d3" onSubmit={handleSubmit}
@@ -255,27 +281,27 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                 
                 <div className="lp-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>First Name</label>
-                    <input className="lp-input" type="text" placeholder="John" required />
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>First Name</label>
+                    <input className="lp-input" type="text" placeholder="John" />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Last Name</label>
-                    <input className="lp-input" type="text" placeholder="Smith" required />
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Last Name</label>
+                    <input className="lp-input" type="text" placeholder="Smith" />
                   </div>
                 </div>
                 <div className="lp-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Email</label>
-                    <input className="lp-input" type="email" placeholder="john@example.com" required />
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Email</label>
+                    <input className="lp-input" type="email" placeholder="john@example.com" />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Phone</label>
-                    <input className="lp-input" type="tel" placeholder="(555) 000-0000" required />
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Phone</label>
+                    <input className="lp-input" type="tel" placeholder="(555) 000-0000" />
                   </div>
                 </div>
                 <div style={{ marginBottom: 20 }}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>What can we help you with?</label>
-                  <select className="lp-input" required defaultValue="">
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>What can we help you with?</label>
+                  <select className="lp-input" defaultValue="">
                     <option value="" disabled>Select an option</option>
                     <option>Schedule a Test Drive</option>
                     <option>Book a Service Appointment</option>
@@ -285,44 +311,39 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                 </div>
                 <div className="lp-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Preferred Date</label>
-                    <input className="lp-input" type="date" min={new Date().toISOString().split('T')[0]} onChange={handleDateChange} required />
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Preferred Date</label>
+                    <input className="lp-input" type="date" min={new Date().toISOString().split('T')[0]} onChange={handleDateChange} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Preferred Time</label>
-                    <select className="lp-input" required defaultValue="">
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Preferred Time</label>
+                    <select className="lp-input" defaultValue="">
                       <option value="" disabled>Select a time</option>
                       {['9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM','4:30 PM','5:00 PM','5:30 PM','6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM'].map(t => <option key={t}>{t}</option>)}
                     </select>
                   </div>
                 </div>
                 <div style={{ marginBottom: 20 }}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Additional Details</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Additional Details</label>
                   <textarea className="lp-input" placeholder="Tell us more — vehicle of interest, type of service, etc." style={{ minHeight: 100, resize: 'vertical' }} />
                 </div>
 
                 {/* SMS Consent */}
-                {d.sms_consent_text && (
-                  <div style={{ marginTop: 28, padding: 24, border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, background: 'rgba(255,255,255,0.015)' }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.12em', color: '#A0A0A0', marginBottom: 14 }}>SMS Communications Consent</p>
-                    <p style={{ fontSize: 13, lineHeight: 1.75, color: '#666', marginBottom: 14 }}>{d.sms_consent_text}</p>
-                    <p style={{ fontSize: 13, marginBottom: 18 }}>
-                      <a href="#" onClick={(e) => { e.preventDefault(); showPage('privacy') }} style={{ color: c, textDecoration: 'none', fontWeight: 500 }}>Privacy Policy</a>
-                      {' | '}
-                      <a href="#" onClick={(e) => { e.preventDefault(); showPage('terms') }} style={{ color: c, textDecoration: 'none', fontWeight: 500 }}>Terms & Conditions</a>
-                    </p>
-                    <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                      <input type="checkbox" required style={{ marginTop: 3, width: 18, height: 18, accentColor: c, flexShrink: 0, cursor: 'pointer' }} />
-                      <label style={{ fontSize: 13, lineHeight: 1.65, color: '#666', cursor: 'pointer' }}>
-                        {d.sms_checkbox_label}
-                        <span style={{ display: 'block', marginTop: 6, fontSize: 11, color: '#333' }}>Msg & data rates may apply. Reply STOP to opt out. Reply HELP for help. Message frequency may vary. Consent is not a condition of purchase.</span>
-                      </label>
-                    </div>
+                <div style={{ marginTop: 28, padding: 24, border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, background: 'rgba(255,255,255,0.015)' }}>
+                  <p style={{ fontSize: 15, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.12em', color: '#E8E8E8', marginBottom: 14 }}>SMS Communications Consent</p>
+                  <p style={{ fontSize: 15, lineHeight: 1.75, color: '#999', marginBottom: 14 }}>{smsConsentText}</p>
+                  <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <input
+                      type="checkbox"
+                      style={{ marginTop: 3, width: 18, height: 18, accentColor: c, flexShrink: 0, cursor: 'pointer' }}
+                    />
+                    <label style={{ fontSize: 15, lineHeight: 1.65, color: '#B0B0B0', cursor: 'pointer' }}>
+                      I agree to receive text messages from {d.dealership_name}. Message & data rates may apply. Reply STOP to opt out.
+                    </label>
                   </div>
-                )}
+                </div>
 
                 <button type="submit" disabled={submitting}
-                  style={{ marginTop: 32, width: '100%', padding: 18, background: c, color: '#fff', border: 'none', borderRadius: 10, fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.03em', opacity: submitting ? 0.5 : 1 }}>
+                  style={{ marginTop: 32, width: '100%', padding: 22, background: c, color: '#FFFFFF', border: 'none', borderRadius: 10, fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.05em', textTransform: 'uppercase' as const, opacity: submitting ? 0.5 : 1, transition: 'all 0.3s ease', boxShadow: `0 8px 30px ${c}33` }}>
                   {submitting ? 'Submitting...' : 'Submit Appointment Request'}
                 </button>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 20 }}>
@@ -384,7 +405,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           <h1 className="fd" style={{ fontSize: 40, fontWeight: 500, marginBottom: 8, letterSpacing: '-0.02em' }}>Privacy Policy</h1>
           <p style={{ fontSize: 13, color: '#333', marginBottom: 48 }}>Effective Date: {d.privacy_effective_date || 'Sep 15, 2025'}</p>
           <div style={{ fontSize: 14, color: '#666', lineHeight: 1.85, fontWeight: 300 }}>
-            <p style={{ marginBottom: 16 }}>At {d.legal_entity_name} we respect and value your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website, use our services, or engage with us in other ways.</p>
+            <p style={{ marginBottom: 16 }}>At {d.legal_entity_name} (operating at {d.subdomain}.visquanta.com) we respect and value your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website, use our services, or engage with us in other ways.</p>
             <h2 style={{ fontSize: 18, fontWeight: 600, margin: '36px 0 12px', color: '#E8E8E8' }}>1. Information We Collect</h2>
             <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Personal Identification Information:</strong> Name, email address, phone number, and other similar contact data.</p>
             <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Technical Information:</strong> IP address, browser type, operating system, and browsing habits through cookies and similar technologies.</p>
@@ -395,7 +416,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
             <h2 style={{ fontSize: 18, fontWeight: 600, margin: '36px 0 12px', color: '#E8E8E8' }}>4. Data Security</h2>
             <p style={{ marginBottom: 16 }}>We are committed to protecting your personal information using industry-standard security measures.</p>
             <h2 style={{ fontSize: 18, fontWeight: 600, margin: '36px 0 12px', color: '#E8E8E8' }}>5. Contact Us</h2>
-            <p>If you have questions about this Privacy Policy, please contact us at: {d.phone_sales && <a href={`tel:${d.phone_sales.replace(/\D/g, '')}`} style={{ color: c }}>{d.phone_sales}</a>}</p>
+            <p>If you have questions about this Privacy Policy, please contact us at: {d.phone_sales && <a href={`tel:${d.phone_sales.replace(/\D/g, '')}`} style={{ color: c }}>{d.phone_sales}</a>}{d.email && <span> or <a href={`mailto:${d.email}`} style={{ color: c }}>{d.email}</a></span>}. Website: {d.subdomain}.visquanta.com</p>
           </div>
         </div>
       )}
@@ -407,7 +428,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           <h1 className="fd" style={{ fontSize: 40, fontWeight: 500, marginBottom: 8, letterSpacing: '-0.02em' }}>Terms and Conditions</h1>
           <p style={{ fontSize: 13, color: '#333', marginBottom: 48 }}>Effective Date: {d.terms_effective_date || 'Sep 15, 2025'}</p>
           <ol style={{ listStyle: 'decimal', paddingLeft: 20, fontSize: 14, color: '#666', lineHeight: 1.85, fontWeight: 300 }}>
-            <li style={{ marginBottom: 12 }}>This SMS program sends recurring automated appointment confirmations, service reminders, rescheduling notifications, and other account-related updates from {d.legal_entity_name} {d.dba_name ? `(DBA ${d.dba_name})` : ''} to customers who have opted in. No promotional or marketing messages are sent.</li>
+            <li style={{ marginBottom: 12 }}>This SMS program sends recurring automated appointment confirmations, service reminders, rescheduling notifications, and other account-related updates from {d.legal_entity_name} {d.dba_name ? `(DBA ${d.dba_name})` : ''} (website: {d.subdomain}.visquanta.com) to customers who have opted in. No promotional or marketing messages are sent.</li>
             <li style={{ marginBottom: 12 }}>You can cancel at any time by replying STOP.</li>
             <li style={{ marginBottom: 12 }}>If you experience issues, reply HELP for assistance{d.phone_sms_help ? ` or call ${d.phone_sms_help}` : ''}{d.email ? ` or email ${d.email}` : ''}.</li>
             <li style={{ marginBottom: 12 }}>Carriers are not liable for delayed or undelivered messages.</li>

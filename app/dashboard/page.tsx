@@ -14,6 +14,10 @@ export default function DashboardPage() {
   const [scraping, setScraping] = useState(false)
   const [scrapeData, setScrapeData] = useState<any>(null)
   const [scrapeError, setScrapeError] = useState('')
+  const [bulkDeploying, setBulkDeploying] = useState(false)
+  const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number; subdomain: string } | null>(null)
+  const [bulkResults, setBulkResults] = useState<Array<{ subdomain: string; success: boolean; error?: string; liveUrl?: string }>>([])
+  const [notifications, setNotifications] = useState<Array<{ id: number; type: 'success' | 'error'; message: string }>>([])
 
   useEffect(() => { fetchDealerships() }, [])
 
@@ -59,7 +63,13 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: scrapeUrl }),
       })
-      const data = await res.json()
+      const text = await res.text()
+      let data
+      try {
+        data = JSON.parse(text)
+      } catch {
+        throw new Error('Server returned an invalid response. The site may be too slow or blocking requests.')
+      }
       if (data.error) {
         setScrapeError(data.error)
       } else {
@@ -81,6 +91,60 @@ export default function DashboardPage() {
     setShowForm(true)
   }
 
+  function pushNotification(type: 'success' | 'error', message: string) {
+    const id = Date.now() + Math.floor(Math.random() * 10000)
+    setNotifications(prev => [...prev, { id, type, message }])
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id))
+    }, 4500)
+  }
+
+  async function handleRedeployAll() {
+    if (!dealerships.length || bulkDeploying) return
+    if (!confirm(`Redeploy ${dealerships.length} dealership sites sequentially?`)) return
+
+    setBulkDeploying(true)
+    setBulkResults([])
+    const results: Array<{ subdomain: string; success: boolean; error?: string; liveUrl?: string }> = []
+
+    for (let i = 0; i < dealerships.length; i++) {
+      const d = dealerships[i]
+      setBulkProgress({ current: i + 1, total: dealerships.length, subdomain: d.subdomain })
+
+      try {
+        const res = await fetch('/api/deploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subdomain: d.subdomain }),
+        })
+
+        const text = await res.text()
+        let data: any = {}
+        try {
+          data = JSON.parse(text)
+        } catch {
+          data = { error: 'Invalid response from deploy API' }
+        }
+
+        if (res.ok && data.success) {
+          results.push({ subdomain: d.subdomain, success: true, liveUrl: data.liveUrl })
+          pushNotification('success', `${d.subdomain} deployed successfully`)
+        } else {
+          results.push({ subdomain: d.subdomain, success: false, error: data.error || `HTTP ${res.status}` })
+          pushNotification('error', `${d.subdomain} failed: ${data.error || `HTTP ${res.status}`}`)
+        }
+      } catch (e: any) {
+        results.push({ subdomain: d.subdomain, success: false, error: e.message || 'Deploy failed' })
+        pushNotification('error', `${d.subdomain} failed: ${e.message || 'Deploy failed'}`)
+      }
+
+      setBulkResults([...results])
+    }
+
+    setBulkDeploying(false)
+    setBulkProgress(null)
+  }
+
   return (
     <>
       {/* Header */}
@@ -92,6 +156,13 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex gap-3">
+          <button
+            onClick={handleRedeployAll}
+            disabled={bulkDeploying || loading || dealerships.length === 0}
+            className="text-sm font-semibold text-white/80 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] px-4 py-2.5 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {bulkDeploying ? 'Redeploying All...' : 'Redeploy All'}
+          </button>
           <button
             onClick={handleNewManual}
             className="text-sm font-medium text-white/50 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] px-4 py-2.5 rounded-lg transition-all"
@@ -107,6 +178,51 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {(bulkDeploying || bulkResults.length > 0) && (
+        <div className="mb-6 bg-white/[0.02] border border-white/[0.08] rounded-xl p-4">
+          {bulkProgress && (
+            <p className="text-sm text-white/70 mb-2">
+              Redeploying {bulkProgress.current}/{bulkProgress.total}: <span className="text-white">{bulkProgress.subdomain}</span>
+            </p>
+          )}
+          {bulkResults.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs text-white/50 mb-2">
+                Completed: {bulkResults.filter(r => r.success).length} success, {bulkResults.filter(r => !r.success).length} failed
+              </p>
+              <div className="max-h-44 overflow-y-auto space-y-1 pr-1">
+                {bulkResults.map((r) => (
+                  <div key={r.subdomain} className="text-xs">
+                    <span className={r.success ? 'text-emerald-400' : 'text-red-400'}>
+                      {r.success ? 'OK' : 'FAIL'}
+                    </span>
+                    <span className="text-white/70"> — {r.subdomain}</span>
+                    {!r.success && r.error ? <span className="text-white/40"> ({r.error})</span> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {notifications.length > 0 && (
+        <div className="fixed top-20 right-4 z-[70] space-y-2">
+          {notifications.map((n) => (
+            <div
+              key={n.id}
+              className={`rounded-lg border px-4 py-3 text-sm shadow-xl backdrop-blur ${
+                n.type === 'success'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                  : 'bg-red-500/10 border-red-500/30 text-red-300'
+              }`}
+            >
+              {n.message}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Scraper Modal */}
       {showScraper && (
@@ -182,11 +298,14 @@ export default function DashboardPage() {
                   {d.logo_url ? (
                     <img src={d.logo_url} alt="" className="w-10 h-10 rounded-lg bg-white p-1 object-contain" />
                   ) : (
-                    <div className="w-10 h-10 rounded-lg bg-white/[0.06] flex items-center justify-center text-lg">🏢</div>
+                    <div className="w-10 h-10 rounded-lg bg-white/[0.06] flex items-center justify-center text-lg">{d.business_type === 'gym' ? '\uD83C\uDFCB\uFE0F' : '\uD83C\uDFE2'}</div>
                   )}
                   <div>
                     <h3 className="font-semibold text-sm">{d.dealership_name}</h3>
                     <p className="text-xs text-white/40">{d.brand}</p>
+                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${d.business_type === 'gym' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                      {d.business_type === 'gym' ? 'Gym' : 'Dealership'}
+                    </span>
                   </div>
                 </div>
                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${
@@ -202,7 +321,11 @@ export default function DashboardPage() {
                 </div>
                 {d.address_city && <div className="flex items-center gap-2 text-xs text-white/50"><span>📍</span><span>{d.address_city}, {d.address_state}</span></div>}
                 {d.phone_sales && <div className="flex items-center gap-2 text-xs text-white/50"><span>📞</span><span>{d.phone_sales}</span></div>}
-                <div className="flex items-center gap-2 text-xs text-white/50"><span>🚗</span><span>{d.vehicles?.length || 0} vehicle{d.vehicles?.length !== 1 ? 's' : ''}</span></div>
+                {d.business_type === 'gym' ? (
+                  <div className="flex items-center gap-2 text-xs text-white/50"><span>{'\uD83C\uDFCB\uFE0F'}</span><span>{d.services?.length || 0} service{d.services?.length !== 1 ? 's' : ''}</span></div>
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-white/50"><span>{'\uD83D\uDE97'}</span><span>{d.vehicles?.length || 0} vehicle{d.vehicles?.length !== 1 ? 's' : ''}</span></div>
+                )}
               </div>
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-4 h-4 rounded-full border border-white/10" style={{ backgroundColor: d.primary_color }}></div>

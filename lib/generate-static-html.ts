@@ -69,6 +69,11 @@ function sharedStyles(c: string, cDark: string): string {
 }
 
 function navHTML(d: Dealership, c: string): string {
+  const isGym = d.business_type === 'gym'
+  const thirdLink = isGym
+    ? `<a href="/#services" style="color:#A0A0A0;text-decoration:none;font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase">Classes &amp; Training</a>`
+    : `<a href="/#vehicles" style="color:#A0A0A0;text-decoration:none;font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase">Vehicles</a>`
+
   return `<nav id="lp-nav">
     <a href="/" style="display:flex;align-items:center;gap:14px;text-decoration:none">
       ${d.logo_url ? `<img src="${esc(d.logo_url)}" alt="${esc(d.dealership_name)}" style="height:40px;object-fit:contain" />` : ''}
@@ -77,7 +82,7 @@ function navHTML(d: Dealership, c: string): string {
     <div class="lp-nav-links" style="display:flex;gap:36px;align-items:center">
       <a href="/" style="color:#A0A0A0;text-decoration:none;font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase">Home</a>
       <a href="/#how" style="color:#A0A0A0;text-decoration:none;font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase">How It Works</a>
-      <a href="/#vehicles" style="color:#A0A0A0;text-decoration:none;font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase">Vehicles</a>
+      ${thirdLink}
       <a href="/#info" style="color:#A0A0A0;text-decoration:none;font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase">Contact</a>
       <a href="/#booking" style="background:${esc(c)};color:#fff;padding:11px 28px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;letter-spacing:0.06em;text-transform:uppercase">Book Now</a>
     </div>
@@ -114,6 +119,12 @@ function revealScript(d: Dealership): string {
   </script>`
 }
 
+const DEFAULT_GYM_SERVICES = [
+  { name: 'Group Fitness', icon: '\u{1F3CB}\uFE0F', desc: 'High-energy classes including HIIT, cycling, yoga, and more.' },
+  { name: 'Pilates Reformer+', icon: '\u{1F9D8}', desc: 'Reformer-based Pilates for core strength, flexibility, and balance.' },
+  { name: 'Personal Training', icon: '\u{1F4AA}', desc: 'One-on-one sessions tailored to your goals with certified trainers.' },
+]
+
 export function generateStaticSite(d: Dealership): { file: string; data: string }[] {
   const c = d.primary_color || '#D4132A'
   const cDark = adjustColor(c, -20)
@@ -121,9 +132,48 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
   const vehicles = d.vehicles || []
   const year = new Date().getFullYear()
   const todayMin = new Date().toISOString().split('T')[0]
-  const times = ['9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM','4:30 PM','5:00 PM','5:30 PM','6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM']
+  const isGym = d.business_type === 'gym'
 
-  const vehiclesHTML = vehicles.length > 0 ? `
+  const dealerTimes = ['9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM','4:30 PM','5:00 PM','5:30 PM','6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM']
+  const gymTimes = ['5:00 AM','5:30 AM','6:00 AM','6:30 AM','7:00 AM','7:30 AM','8:00 AM','8:30 AM',...dealerTimes]
+  const times = isGym ? gymTimes : dealerTimes
+
+  const smsConsentText =
+    d.sms_consent_text ||
+    (isGym
+      ? 'By providing your phone number, you consent to receive appointment and service-related text messages from this gym. Message frequency may vary.'
+      : 'By providing your phone number, you consent to receive appointment and service-related text messages from this dealership. Message frequency may vary.')
+
+  // ── VEHICLES / SERVICES SECTION ──
+  let middleSectionHTML = ''
+
+  if (isGym) {
+    // Gym services section
+    const gymServices = (d.services && d.services.length > 0)
+      ? d.services.map(s => ({ name: s.name, icon: '\u{1F3CB}\uFE0F', desc: s.description }))
+      : DEFAULT_GYM_SERVICES
+
+    middleSectionHTML = `
+    <section id="services" class="lp-section" style="padding:120px 48px;background:#111">
+      <div style="max-width:1280px;margin:0 auto">
+        <p class="lp-reveal" style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:${esc(c)};margin-bottom:16px">What We Offer</p>
+        <h2 class="fd lp-reveal lp-d1" style="font-size:clamp(32px,4vw,48px);font-weight:500;letter-spacing:-0.02em;margin-bottom:16px;line-height:1.1">Classes &amp; Training</h2>
+        <p class="lp-reveal lp-d2" style="font-size:16px;color:#A0A0A0;max-width:500px;margin-bottom:64px;font-weight:300;line-height:1.7">Explore the programs available at ${esc(d.dealership_name)}.</p>
+        <div class="lp-3col" style="display:grid;grid-template-columns:repeat(${Math.min(gymServices.length, 3)},1fr);gap:24px">
+          ${gymServices.map((s, i) => `
+            <div class="lp-reveal${i > 0 ? ` lp-d${i}` : ''}" style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:40px 32px;text-align:center">
+              <div style="font-size:48px;margin-bottom:20px">${s.icon}</div>
+              <p style="font-size:18px;font-weight:600;margin-bottom:10px">${esc(s.name)}</p>
+              <p style="font-size:14px;color:#A0A0A0;line-height:1.7;font-weight:300">${esc(s.desc)}</p>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </section>
+  `
+  } else {
+    // Dealership vehicles section
+    middleSectionHTML = vehicles.length > 0 ? `
     <section id="vehicles" class="lp-section" style="padding:120px 48px;background:#111">
       <div style="max-width:1280px;margin:0 auto">
         <p class="lp-reveal" style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:${esc(c)};margin-bottom:16px">${esc(d.brand)} Lineup</p>
@@ -148,6 +198,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       </div>
     </section>
   ` : ''
+  }
 
   const hoursHTML = Object.entries(hours).map(([day, time]) => `
     <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px">
@@ -156,31 +207,92 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     </div>
   `).join('')
 
-  const smsConsentHTML = d.sms_consent_text ? `
+  const smsConsentHTML = `
     <div style="margin-top:28px;padding:24px;border:1px solid rgba(255,255,255,0.06);border-radius:12px;background:rgba(255,255,255,0.015)">
       <p style="font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#E8E8E8;margin-bottom:14px">SMS Communications Consent</p>
-      <p style="font-size:15px;line-height:1.75;color:#999;margin-bottom:14px">${esc(d.sms_consent_text)}</p>
+      <p style="font-size:15px;line-height:1.75;color:#999;margin-bottom:14px">${esc(smsConsentText)}</p>
       <p style="font-size:13px;margin-bottom:18px">
         <a href="/privacy-policy" style="color:${esc(c)};text-decoration:none;font-weight:500">Privacy Policy</a>
         |
         <a href="/terms-and-conditions" style="color:${esc(c)};text-decoration:none;font-weight:500">Terms &amp; Conditions</a>
       </p>
       <div style="display:flex;gap:14px;align-items:flex-start;padding-top:18px;border-top:1px solid rgba(255,255,255,0.06)">
-        <input type="checkbox" required style="margin-top:3px;width:18px;height:18px;accent-color:${esc(c)};flex-shrink:0;cursor:pointer" />
+        <input id="sms-consent-checkbox" type="checkbox" style="margin-top:3px;width:18px;height:18px;accent-color:${esc(c)};flex-shrink:0;cursor:pointer" />
         <label style="font-size:15px;line-height:1.65;color:#B0B0B0;cursor:pointer">
-          ${esc(d.sms_checkbox_label)}
-          <span style="display:block;margin-top:6px;font-size:13px;color:#666">Msg &amp; data rates may apply. Reply STOP to opt out. Reply HELP for help. Message frequency may vary. Consent is not a condition of purchase.</span>
+          I agree to receive text messages from ${esc(d.dealership_name)}. Message &amp; data rates may apply. Reply STOP to opt out.
         </label>
       </div>
     </div>
-  ` : ''
+  `
+
+  // ── Business-type-specific content ──
+  const metaDescription = isGym
+    ? `Book a class, schedule a tour, or inquire about membership at ${esc(d.dealership_name)}. We'll help you get started.`
+    : `Book a test drive or service appointment at ${esc(d.dealership_name)}. We'll confirm the earliest available slot for you.`
+
+  const heroSubtitle = isGym ? 'Fitness Center' : 'Appointment Booking'
+  const heroHeading = isGym
+    ? `Your Fitness<br><em style="font-style:italic;color:${esc(c)}">Starts Here</em>`
+    : `We'll Get You<br><em style="font-style:italic;color:${esc(c)}">Booked In</em>`
+  const heroDescription = isGym
+    ? `Ready to transform your fitness? Tell us what you're interested in and we'll help you get started at ${esc(d.dealership_name)}.`
+    : `Need a test drive or service appointment? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to confirm the earliest available slot.`
+  const heroCta = isGym ? 'Get Started' : 'Book an Appointment'
+  const heroCardOverlay = isGym
+    ? `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; Award-Winning Gym`
+    : `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; New &amp; Used Vehicles`
+
+  // Trust badges
+  const trustBadge1 = isGym
+    ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Award-Winning Gym</div><div style="font-size:12px;color:#666">Best of Marin County</div></div>`
+    : `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Verified Dealership</div><div style="font-size:12px;color:#666">Authorized ${esc(d.brand)} Dealer</div></div>`
+
+  // How it works step 1
+  const step1Text = isGym
+    ? 'Choose your interest \u2014 group classes, personal training, Pilates, a gym tour, or membership info.'
+    : "Select whether you'd like a test drive, service appointment, or have a general inquiry about a vehicle."
+  const step2Text = isGym
+    ? "Let us know when works best and we'll coordinate with the gym to match your schedule."
+    : "Let us know when works best and we'll coordinate with the dealership to match your schedule."
+
+  // Form service options
+  const serviceOptions = isGym
+    ? `<option value="" disabled selected>Select an option</option>
+            <option>Book a Group Fitness Class</option>
+            <option>Schedule a Gym Tour</option>
+            <option>Membership Inquiry</option>
+            <option>Personal Training Inquiry</option>
+            <option>Pilates Reformer+ Info</option>
+            <option>General Question</option>`
+    : `<option value="" disabled selected>Select an option</option>
+            <option>Schedule a Test Drive</option>
+            <option>Book a Service Appointment</option>
+            <option>Vehicle Inquiry</option>
+            <option>General Question</option>`
+
+  const textareaPlaceholder = isGym
+    ? 'Tell us more \u2014 class interest, fitness goals, preferred schedule, etc.'
+    : 'Tell us more \u2014 vehicle of interest, type of service, etc.'
+
+  const infoSectionLabel = isGym ? 'Gym Details' : 'Dealership Details'
+
+  // Date validation script (no Sunday restriction for gyms)
+  const dateChangeScript = isGym
+    ? 'function handleDateChange(input) {}'
+    : `function handleDateChange(input) {
+      var date = new Date(input.value + 'T00:00:00');
+      if (date.getDay() === 0) {
+        alert('Sorry, ${esc(d.dealership_name)} is closed on Sundays. Please select another day.');
+        input.value = '';
+      }
+    }`
 
   // ── INDEX.HTML ──
   const indexHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
-  ${sharedHead(d, esc(d.page_title || d.dealership_name + ' — Book Your Appointment'), c, cDark)}
-  <meta name="description" content="Book a test drive or service appointment at ${esc(d.dealership_name)}. We'll confirm the earliest available slot for you.">
+  ${sharedHead(d, esc(d.page_title || d.dealership_name + ' \u2014 Book Your Appointment'), c, cDark)}
+  <meta name="description" content="${metaDescription}">
   ${sharedStyles(c, cDark)}
 </head>
 <body>
@@ -198,18 +310,18 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       <div>
         <div class="anim-up" style="display:inline-flex;align-items:center;gap:10px;margin-bottom:24px">
           <span style="width:6px;height:6px;border-radius:50%;background:${esc(c)};animation:pulse 2.5s ease infinite"></span>
-          <span style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#A0A0A0">Appointment Booking</span>
+          <span style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#A0A0A0">${heroSubtitle}</span>
         </div>
         <h1 class="fd anim-up anim-d1" style="font-size:clamp(44px,5.5vw,72px);font-weight:500;line-height:1.05;letter-spacing:-0.03em;margin-bottom:28px">
-          We'll Get You<br><em style="font-style:italic;color:${esc(c)}">Booked In</em>
+          ${heroHeading}
         </h1>
         <p class="anim-up anim-d2" style="font-size:17px;color:#A0A0A0;line-height:1.75;max-width:500px;margin-bottom:44px;font-weight:300">
-          Need a test drive or service appointment? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to confirm the earliest available slot.
+          ${heroDescription}
         </p>
         <div class="anim-up anim-d3 lp-hero-ctas" style="display:flex;gap:16px">
           <a href="#booking" style="display:inline-flex;align-items:center;gap:10px;padding:20px 40px;background:${esc(c)};color:#FFFFFF;border-radius:8px;font-size:17px;font-weight:700;text-decoration:none;letter-spacing:0.04em;text-transform:uppercase;box-shadow:0 8px 30px ${c}33;transition:all 0.3s ease">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Book an Appointment
+            ${heroCta}
           </a>
           <a href="#how" style="display:inline-flex;align-items:center;padding:18px 36px;background:transparent;color:#E8E8E8;border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:15px;font-weight:500;text-decoration:none">Learn More</a>
         </div>
@@ -223,7 +335,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
               ${d.logo_url ? `<img src="${esc(d.logo_url)}" alt="" style="width:44px;height:44px;object-fit:contain;background:#fff;border-radius:8px;padding:5px" />` : ''}
               <div>
                 <strong style="font-size:15px;display:block;margin-bottom:2px">${esc(d.dealership_name)}</strong>
-                <span style="font-size:12px;color:#666">${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; New &amp; Used Vehicles</span>
+                <span style="font-size:12px;color:#666">${heroCardOverlay}</span>
               </div>
             </div>
           </div>
@@ -236,15 +348,15 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
   <section style="padding:48px;border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);background:#111">
     <div class="lp-trust-inner" style="max-width:1280px;margin:0 auto;display:flex;justify-content:center;gap:64px">
       <div style="display:flex;align-items:center;gap:14px">
-        <div style="width:44px;height:44px;border-radius:10px;background:${c}14;border:1px solid ${c}1f;display:flex;align-items:center;justify-content:center;font-size:18px">🛡️</div>
-        <div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Verified Dealership</div><div style="font-size:12px;color:#666">Authorized ${esc(d.brand)} Dealer</div></div>
+        <div style="width:44px;height:44px;border-radius:10px;background:${c}14;border:1px solid ${c}1f;display:flex;align-items:center;justify-content:center;font-size:18px">\u{1F6E1}\uFE0F</div>
+        ${trustBadge1}
       </div>
       <div style="display:flex;align-items:center;gap:14px">
-        <div style="width:44px;height:44px;border-radius:10px;background:${c}14;border:1px solid ${c}1f;display:flex;align-items:center;justify-content:center;font-size:18px">⏱️</div>
+        <div style="width:44px;height:44px;border-radius:10px;background:${c}14;border:1px solid ${c}1f;display:flex;align-items:center;justify-content:center;font-size:18px">\u23F1\uFE0F</div>
         <div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Same-Day Response</div><div style="font-size:12px;color:#666">Confirmation within hours</div></div>
       </div>
       <div style="display:flex;align-items:center;gap:14px">
-        <div style="width:44px;height:44px;border-radius:10px;background:${c}14;border:1px solid ${c}1f;display:flex;align-items:center;justify-content:center;font-size:18px">💬</div>
+        <div style="width:44px;height:44px;border-radius:10px;background:${c}14;border:1px solid ${c}1f;display:flex;align-items:center;justify-content:center;font-size:18px">\u{1F4AC}</div>
         <div><div style="font-size:14px;font-weight:500;color:#E8E8E8">SMS Confirmation</div><div style="font-size:12px;color:#666">Instant booking updates</div></div>
       </div>
     </div>
@@ -260,12 +372,12 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
         <div class="lp-reveal" style="padding:40px 32px;background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px">
           <div class="fd" style="font-size:48px;font-weight:400;color:${c}33;line-height:1;margin-bottom:20px">01</div>
           <h3 style="font-size:18px;font-weight:600;margin-bottom:10px">Tell Us What You Need</h3>
-          <p style="font-size:14px;color:#A0A0A0;line-height:1.7;font-weight:300">Select whether you'd like a test drive, service appointment, or have a general inquiry about a vehicle.</p>
+          <p style="font-size:14px;color:#A0A0A0;line-height:1.7;font-weight:300">${step1Text}</p>
         </div>
         <div class="lp-reveal lp-d1" style="padding:40px 32px;background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px">
           <div class="fd" style="font-size:48px;font-weight:400;color:${c}33;line-height:1;margin-bottom:20px">02</div>
           <h3 style="font-size:18px;font-weight:600;margin-bottom:10px">Pick Your Preferred Time</h3>
-          <p style="font-size:14px;color:#A0A0A0;line-height:1.7;font-weight:300">Let us know when works best and we'll coordinate with the dealership to match your schedule.</p>
+          <p style="font-size:14px;color:#A0A0A0;line-height:1.7;font-weight:300">${step2Text}</p>
         </div>
         <div class="lp-reveal lp-d2" style="padding:40px 32px;background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px">
           <div class="fd" style="font-size:48px;font-weight:400;color:${c}33;line-height:1;margin-bottom:20px">03</div>
@@ -276,7 +388,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     </div>
   </section>
 
-  ${vehiclesHTML}
+  ${middleSectionHTML}
 
   <!-- BOOKING FORM -->
   <section id="booking" class="lp-section" style="padding:120px 48px;position:relative">
@@ -284,48 +396,44 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       <p class="lp-reveal" style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:${esc(c)};margin-bottom:16px">Get Started</p>
       <h2 class="fd lp-reveal lp-d1" style="font-size:clamp(36px,5vw,56px);font-weight:500;letter-spacing:-0.02em;margin-bottom:16px;line-height:1.1;color:#FFFFFF">Book Your Appointment</h2>
       <p class="lp-reveal lp-d2" style="font-size:16px;color:#A0A0A0;max-width:500px;margin-bottom:64px;font-weight:300;line-height:1.7">Fill in your details and we'll handle the rest.</p>
-      
+
       <form id="lp-form" class="lp-form-card lp-reveal lp-d3" onsubmit="handleSubmit(event)" style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:52px;position:relative;overflow:hidden">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent 0%,${esc(c)} 50%,transparent 100%)"></div>
-        
+
         <div class="lp-form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
           <div>
             <label style="display:block;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">First Name</label>
-            <input class="lp-input" type="text" name="first_name" placeholder="John" required />
+            <input class="lp-input" type="text" name="first_name" placeholder="John" />
           </div>
           <div>
             <label style="display:block;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Last Name</label>
-            <input class="lp-input" type="text" name="last_name" placeholder="Smith" required />
+            <input class="lp-input" type="text" name="last_name" placeholder="Smith" />
           </div>
         </div>
         <div class="lp-form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
           <div>
             <label style="display:block;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Email</label>
-            <input class="lp-input" type="email" name="email" placeholder="john@example.com" required />
+            <input class="lp-input" type="email" name="email" placeholder="john@example.com" />
           </div>
           <div>
             <label style="display:block;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Phone</label>
-            <input class="lp-input" type="tel" name="phone" placeholder="(555) 000-0000" required />
+            <input class="lp-input" type="tel" name="phone" placeholder="(555) 000-0000" />
           </div>
         </div>
         <div style="margin-bottom:20px">
           <label style="display:block;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">What can we help you with?</label>
-          <select class="lp-input" name="service_type" required>
-            <option value="" disabled selected>Select an option</option>
-            <option>Schedule a Test Drive</option>
-            <option>Book a Service Appointment</option>
-            <option>Vehicle Inquiry</option>
-            <option>General Question</option>
+          <select class="lp-input" name="service_type">
+            ${serviceOptions}
           </select>
         </div>
         <div class="lp-form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
           <div>
             <label style="display:block;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Preferred Date</label>
-            <input class="lp-input" type="date" name="preferred_date" min="${todayMin}" onchange="handleDateChange(this)" required />
+            <input class="lp-input" type="date" name="preferred_date" min="${todayMin}" onchange="handleDateChange(this)" />
           </div>
           <div>
             <label style="display:block;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Preferred Time</label>
-            <select class="lp-input" name="preferred_time" required>
+            <select class="lp-input" name="preferred_time">
               <option value="" disabled selected>Select a time</option>
               ${times.map(t => `<option>${t}</option>`).join('')}
             </select>
@@ -333,7 +441,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
         </div>
         <div style="margin-bottom:20px">
           <label style="display:block;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Additional Details</label>
-          <textarea class="lp-input" name="details" placeholder="Tell us more — vehicle of interest, type of service, etc." style="min-height:100px;resize:vertical"></textarea>
+          <textarea class="lp-input" name="details" placeholder="${textareaPlaceholder}" style="min-height:100px;resize:vertical"></textarea>
         </div>
 
         ${smsConsentHTML}
@@ -354,11 +462,11 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
   <section id="info" class="lp-section" style="padding:120px 48px;background:#111">
     <div class="lp-2col" style="max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:start">
       <div>
-        <p class="lp-reveal" style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:${esc(c)};margin-bottom:16px">Dealership Details</p>
+        <p class="lp-reveal" style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:${esc(c)};margin-bottom:16px">${infoSectionLabel}</p>
         <h2 class="fd lp-reveal lp-d1" style="font-size:clamp(32px,4vw,48px);font-weight:500;letter-spacing:-0.02em;margin-bottom:40px;line-height:1.1">${esc(d.dealership_name)}</h2>
         ${d.address_full ? `
           <div class="lp-reveal lp-d2" style="display:flex;gap:18px;align-items:flex-start;margin-bottom:32px">
-            <div style="width:48px;height:48px;border-radius:12px;background:${c}0f;border:1px solid ${c}1a;display:flex;align-items:center;justify-content:center;font-size:20px">📍</div>
+            <div style="width:48px;height:48px;border-radius:12px;background:${c}0f;border:1px solid ${c}1a;display:flex;align-items:center;justify-content:center;font-size:20px">\u{1F4CD}</div>
             <div>
               <p style="font-size:11px;color:#333;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;font-weight:600">Address</p>
               <p style="font-size:16px;font-weight:500"><a href="${esc(d.maps_url || '#')}" target="_blank" rel="noopener" style="color:#E8E8E8;text-decoration:none">${esc(d.address_full)}</a></p>
@@ -367,7 +475,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
         ` : ''}
         ${d.phone_sales ? `
           <div class="lp-reveal lp-d3" style="display:flex;gap:18px;align-items:flex-start;margin-bottom:32px">
-            <div style="width:48px;height:48px;border-radius:12px;background:${c}0f;border:1px solid ${c}1a;display:flex;align-items:center;justify-content:center;font-size:20px">📞</div>
+            <div style="width:48px;height:48px;border-radius:12px;background:${c}0f;border:1px solid ${c}1a;display:flex;align-items:center;justify-content:center;font-size:20px">\u{1F4DE}</div>
             <div>
               <p style="font-size:11px;color:#333;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;font-weight:600">Sales</p>
               <p style="font-size:16px;font-weight:500"><a href="tel:${d.phone_sales?.replace(/\D/g, '')}" style="color:#E8E8E8;text-decoration:none">${esc(d.phone_sales)}</a></p>
@@ -397,7 +505,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       <h3 class="fd" style="font-size:28px;font-weight:500;margin-bottom:10px">You're All Set!</h3>
       <p style="color:#A0A0A0;font-size:14px;line-height:1.65;margin-bottom:24px;font-weight:300">Your appointment request has been submitted successfully.</p>
       <div style="display:flex;align-items:flex-start;gap:14px;background:${c}0d;border:1px solid ${c}1a;border-radius:12px;padding:16px 18px;text-align:left;margin-bottom:24px">
-        <div style="width:40px;height:40px;border-radius:10px;background:${c}1a;display:flex;align-items:center;justify-content:center;color:${esc(c)};flex-shrink:0">💬</div>
+        <div style="width:40px;height:40px;border-radius:10px;background:${c}1a;display:flex;align-items:center;justify-content:center;color:${esc(c)};flex-shrink:0">\u{1F4AC}</div>
         <div>
           <strong style="display:block;font-size:13px;margin-bottom:3px">Check your phone</strong>
           <span style="font-size:12px;color:#666;line-height:1.5">You'll receive an SMS confirmation shortly with your appointment details.</span>
@@ -418,13 +526,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       var nav = document.getElementById('lp-nav');
       if (nav) nav.classList.toggle('lp-nav-scrolled', window.scrollY > 50);
     });
-    function handleDateChange(input) {
-      var date = new Date(input.value + 'T00:00:00');
-      if (date.getDay() === 0) {
-        alert('Sorry, ${esc(d.dealership_name)} is closed on Sundays. Please select another day.');
-        input.value = '';
-      }
-    }
+    ${dateChangeScript}
     function handleSubmit(e) {
       e.preventDefault();
       var btn = document.getElementById('submit-btn');

@@ -9,7 +9,13 @@ type Props = { params: Promise<{ subdomain: string }> }
 
 export default async function DealerLandingPage({ params }: Props) {
   const { subdomain } = await params
-  const supabase = createServiceClient()
+  
+  let supabase
+  try {
+    supabase = createServiceClient()
+  } catch {
+    return notFound()
+  }
   
   const { data, error } = await supabase
     .from('dealerships')
@@ -25,7 +31,14 @@ export default async function DealerLandingPage({ params }: Props) {
 
 export async function generateMetadata({ params }: Props) {
   const { subdomain } = await params
-  const supabase = createServiceClient()
+  
+  let supabase
+  try {
+    supabase = createServiceClient()
+  } catch {
+    return { title: 'Book Your Appointment' }
+  }
+  
   const { data } = await supabase
     .from('dealerships')
     .select('page_title, dealership_name')

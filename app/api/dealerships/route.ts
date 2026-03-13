@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 
 export async function GET() {
-  const supabase = createServiceClient()
+  let supabase
+  try {
+    supabase = createServiceClient()
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Configuration error'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
   const { data, error } = await supabase
     .from('dealerships')
     .select('*')
@@ -13,7 +19,13 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = createServiceClient()
+  let supabase
+  try {
+    supabase = createServiceClient()
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Configuration error'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
   const body = await req.json()
   
   const { data, error } = await supabase
@@ -27,7 +39,13 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const supabase = createServiceClient()
+  let supabase
+  try {
+    supabase = createServiceClient()
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Configuration error'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
   const body = await req.json()
   const { id, ...updates } = body
   
@@ -43,7 +61,13 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const supabase = createServiceClient()
+  let supabase
+  try {
+    supabase = createServiceClient()
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Configuration error'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
   const { id } = await req.json()
   
   const { error } = await supabase
