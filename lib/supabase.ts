@@ -24,7 +24,7 @@ export type Dealership = {
   created_at: string
   updated_at: string
   is_active: boolean
-  business_type: 'dealership' | 'gym'
+  business_type: 'dealership' | 'gym' | 'insurance'
   subdomain: string
   dealership_name: string
   legal_entity_name: string
@@ -45,6 +45,7 @@ export type Dealership = {
   hero_card_image: string | null
   vehicles: Vehicle[]
   services: GymService[]
+  insurance_products: InsuranceProduct[]
   sms_consent_text: string | null
   sms_checkbox_label: string | null
   sms_optin_response: string | null
@@ -69,4 +70,10 @@ export type Vehicle = {
 export type GymService = {
   name: string
   description: string
+}
+
+export type InsuranceProduct = {
+  name: string
+  description: string
+  type: string
 }

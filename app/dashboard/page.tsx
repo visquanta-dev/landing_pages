@@ -18,7 +18,7 @@ export default function DashboardPage() {
   const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number; subdomain: string } | null>(null)
   const [bulkResults, setBulkResults] = useState<Array<{ subdomain: string; success: boolean; error?: string; liveUrl?: string }>>([])
   const [notifications, setNotifications] = useState<Array<{ id: number; type: 'success' | 'error'; message: string }>>([])
-  const [typeFilter, setTypeFilter] = useState<'all' | 'dealership' | 'gym'>('all')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'dealership' | 'gym' | 'insurance'>('all')
 
   const filtered = typeFilter === 'all' ? dealerships : dealerships.filter(d => (d.business_type || 'dealership') === typeFilter)
 
@@ -161,13 +161,14 @@ export default function DashboardPage() {
         <div className="flex gap-3">
           <select
             value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value as 'all' | 'dealership' | 'gym')}
+            onChange={e => setTypeFilter(e.target.value as 'all' | 'dealership' | 'gym' | 'insurance')}
             className="text-sm font-medium text-white/70 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] px-3 py-2.5 rounded-lg transition-all appearance-none cursor-pointer outline-none"
             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '28px' }}
           >
             <option value="all" style={{ background: '#111' }}>All Sites</option>
             <option value="dealership" style={{ background: '#111' }}>Dealerships</option>
             <option value="gym" style={{ background: '#111' }}>Gyms</option>
+            <option value="insurance" style={{ background: '#111' }}>Insurance</option>
           </select>
           <button
             onClick={handleRedeployAll}
@@ -311,13 +312,13 @@ export default function DashboardPage() {
                   {d.logo_url ? (
                     <img src={d.logo_url} alt="" className="w-10 h-10 rounded-lg bg-white p-1 object-contain" />
                   ) : (
-                    <div className="w-10 h-10 rounded-lg bg-white/[0.06] flex items-center justify-center text-lg">{d.business_type === 'gym' ? '\uD83C\uDFCB\uFE0F' : '\uD83C\uDFE2'}</div>
+                    <div className="w-10 h-10 rounded-lg bg-white/[0.06] flex items-center justify-center text-lg">{d.business_type === 'gym' ? '\uD83C\uDFCB\uFE0F' : d.business_type === 'insurance' ? '\uD83D\uDEE1\uFE0F' : '\uD83C\uDFE2'}</div>
                   )}
                   <div>
                     <h3 className="font-semibold text-sm">{d.dealership_name}</h3>
                     <p className="text-xs text-white/40">{d.brand}</p>
-                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${d.business_type === 'gym' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
-                      {d.business_type === 'gym' ? 'Gym' : 'Dealership'}
+                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${d.business_type === 'gym' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : d.business_type === 'insurance' ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                      {d.business_type === 'gym' ? 'Gym' : d.business_type === 'insurance' ? 'Insurance' : 'Dealership'}
                     </span>
                   </div>
                 </div>
@@ -336,6 +337,8 @@ export default function DashboardPage() {
                 {d.phone_sales && <div className="flex items-center gap-2 text-xs text-white/50"><span>📞</span><span>{d.phone_sales}</span></div>}
                 {d.business_type === 'gym' ? (
                   <div className="flex items-center gap-2 text-xs text-white/50"><span>{'\uD83C\uDFCB\uFE0F'}</span><span>{d.services?.length || 0} service{d.services?.length !== 1 ? 's' : ''}</span></div>
+                ) : d.business_type === 'insurance' ? (
+                  <div className="flex items-center gap-2 text-xs text-white/50"><span>{'\uD83D\uDEE1\uFE0F'}</span><span>{d.insurance_products?.length || 0} product{d.insurance_products?.length !== 1 ? 's' : ''}</span></div>
                 ) : (
                   <div className="flex items-center gap-2 text-xs text-white/50"><span>{'\uD83D\uDE97'}</span><span>{d.vehicles?.length || 0} vehicle{d.vehicles?.length !== 1 ? 's' : ''}</span></div>
                 )}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import type { Dealership, Vehicle, GymService } from '@/lib/supabase'
+import type { Dealership, Vehicle, GymService, InsuranceProduct } from '@/lib/supabase'
 import { generateSmsTemplates } from '@/lib/sms-templates'
 
 type Props = {
@@ -17,6 +17,7 @@ const DEFAULT_HOURS: Record<string, string> = {
 
 const BRANDS = ['Toyota','Ford','Chevrolet','Honda','Hyundai','Kia','Nissan','Volkswagen','Genesis','BMW','Mercedes-Benz','Audi','Lexus','Jeep','Ram','Dodge','Subaru','Mazda','Other']
 const GYM_BRANDS = ['Gym','Fitness Center','Yoga Studio','Pilates Studio','CrossFit Box','Other']
+const INSURANCE_BRANDS = ['State Farm','Allstate','GEICO','Progressive','Farmers','Liberty Mutual','Nationwide','USAA','American Family','Erie Insurance','Independent Agency','Other']
 
 export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
   const isEdit = !!dealership
@@ -28,7 +29,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
   function buildInitialForm() {
     if (dealership) {
       return {
-        business_type: dealership.business_type || 'dealership' as 'dealership' | 'gym',
+        business_type: dealership.business_type || 'dealership' as 'dealership' | 'gym' | 'insurance',
         subdomain: dealership.subdomain || '',
         dealership_name: dealership.dealership_name || '',
         legal_entity_name: dealership.legal_entity_name || '',
@@ -49,6 +50,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
         hero_card_image: dealership.hero_card_image || '',
         vehicles: dealership.vehicles || [],
         services: dealership.services || [] as GymService[],
+        insurance_products: dealership.insurance_products || [] as InsuranceProduct[],
         sms_consent_text: dealership.sms_consent_text || '',
         sms_checkbox_label: dealership.sms_checkbox_label || '',
         sms_optin_response: dealership.sms_optin_response || '',
@@ -75,7 +77,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
     const sms = name ? generateSmsTemplates(legal, dba, phone, email) : { sms_consent_text: '', sms_checkbox_label: '', sms_optin_response: '', sms_optout_response: '', sms_help_response: '' }
 
     return {
-      business_type: 'dealership' as 'dealership' | 'gym',
+      business_type: 'dealership' as 'dealership' | 'gym' | 'insurance',
       subdomain: sub,
       dealership_name: name,
       legal_entity_name: legal,
@@ -96,6 +98,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
       hero_card_image: s?.hero_images?.[1] || s?.hero_images?.[0] || '',
       vehicles: [] as Vehicle[],
       services: [] as GymService[],
+      insurance_products: [] as InsuranceProduct[],
       ...sms,
       privacy_effective_date: 'Sep 15, 2025',
       terms_effective_date: 'Sep 15, 2025',
@@ -206,6 +209,13 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
   }
   function removeService(idx: number) { set('services', form.services.filter((_: any, i: number) => i !== idx)) }
 
+  // Insurance product management
+  function addInsuranceProduct() { set('insurance_products', [...form.insurance_products, { name: '', description: '', type: '' }]) }
+  function updateInsuranceProduct(idx: number, key: keyof InsuranceProduct, value: string) {
+    const p = [...form.insurance_products]; p[idx] = { ...p[idx], [key]: value }; set('insurance_products', p)
+  }
+  function removeInsuranceProduct(idx: number) { set('insurance_products', form.insurance_products.filter((_: any, i: number) => i !== idx)) }
+
   // Deploy status
   const [domainError, setDomainError] = useState<string | null>(null)
   const [deploying, setDeploying] = useState(false)
@@ -304,7 +314,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
           <div>
-            <h2 className="font-semibold text-lg">{isEdit ? 'Edit' : 'New'} {form.business_type === 'gym' ? 'Gym / Fitness Center' : 'Dealership'}</h2>
+            <h2 className="font-semibold text-lg">{isEdit ? 'Edit' : 'New'} {form.business_type === 'gym' ? 'Gym / Fitness Center' : form.business_type === 'insurance' ? 'Insurance Agency' : 'Dealership'}</h2>
             <p className="text-xs text-white/40 mt-0.5">
               {isEdit ? `Editing ${dealership!.dealership_name}` : scrapeData ? `Imported from ${scrapeData.source_url}` : 'Manual entry'}
             </p>
@@ -328,7 +338,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
           {TABS.map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`text-xs font-medium px-4 py-2 rounded-lg transition-all capitalize ${tab === t ? 'bg-white/[0.08] text-white' : 'text-white/40 hover:text-white/60'}`}>
-              {t === 'sms' ? 'SMS / Legal' : t === 'domain' ? '\uD83C\uDF10 Domain' : t === 'vehicles' ? (form.business_type === 'gym' ? 'Services' : 'Vehicles') : t}
+              {t === 'sms' ? 'SMS / Legal' : t === 'domain' ? '\uD83C\uDF10 Domain' : t === 'vehicles' ? (form.business_type === 'gym' ? 'Services' : form.business_type === 'insurance' ? 'Products' : 'Vehicles') : t}
             </button>
           ))}
         </div>
@@ -344,19 +354,20 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
                 <select className={inputClass} value={form.business_type} onChange={e => set('business_type', e.target.value)}>
                   <option value="dealership">Dealership</option>
                   <option value="gym">Gym / Fitness Center</option>
+                  <option value="insurance">Insurance Agency</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelClass}>{form.business_type === 'gym' ? 'Business Name' : 'Dealership Name'} *</label>
+                  <label className={labelClass}>{form.business_type === 'gym' ? 'Business Name' : form.business_type === 'insurance' ? 'Agency Name' : 'Dealership Name'} *</label>
                   <input className={inputClass} value={form.dealership_name}
                     onChange={e => isEdit ? set('dealership_name', e.target.value) : handleNameChange(e.target.value)}
-                    placeholder={form.business_type === 'gym' ? 'Body Kinetics' : 'Cloninger Toyota'} />
+                    placeholder={form.business_type === 'gym' ? 'Body Kinetics' : form.business_type === 'insurance' ? 'Smith Insurance Group' : 'Cloninger Toyota'} />
                 </div>
                 <div>
-                  <label className={labelClass}>{form.business_type === 'gym' ? 'Type' : 'Brand'} *</label>
+                  <label className={labelClass}>{form.business_type === 'gym' ? 'Type' : form.business_type === 'insurance' ? 'Carrier / Network' : 'Brand'} *</label>
                   <select className={inputClass} value={form.brand} onChange={e => set('brand', e.target.value)}>
-                    {(form.business_type === 'gym' ? GYM_BRANDS : BRANDS).map(b => <option key={b} value={b}>{b}</option>)}
+                    {(form.business_type === 'gym' ? GYM_BRANDS : form.business_type === 'insurance' ? INSURANCE_BRANDS : BRANDS).map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
                 </div>
               </div>
@@ -514,7 +525,35 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
               <button onClick={addService} className="w-full border border-dashed border-white/[0.1] rounded-xl py-3 text-sm text-white/40 hover:text-white/60 hover:border-white/[0.2] transition-all">+ Add Service</button>
             </>
           )}
-          {tab === 'vehicles' && form.business_type !== 'gym' && (
+          {tab === 'vehicles' && form.business_type === 'insurance' && (
+            <>
+              <p className="text-xs text-white/40">Add insurance products to feature on the landing page.</p>
+              {form.insurance_products.map((p: InsuranceProduct, idx: number) => (
+                <div key={idx} className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-white/40">Product {idx + 1}</span>
+                    <button onClick={() => removeInsuranceProduct(idx)} className="text-red-400/60 hover:text-red-400 text-xs transition-colors">Remove</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelClass}>Product Name</label>
+                      <input className={inputClass} value={p.name} onChange={e => updateInsuranceProduct(idx, 'name', e.target.value)} placeholder="Auto Insurance" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Type</label>
+                      <input className={inputClass} value={p.type} onChange={e => updateInsuranceProduct(idx, 'type', e.target.value)} placeholder="Auto • Home • Life • Health" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Description</label>
+                    <input className={inputClass} value={p.description} onChange={e => updateInsuranceProduct(idx, 'description', e.target.value)} placeholder="Comprehensive coverage with competitive rates and bundling discounts." />
+                  </div>
+                </div>
+              ))}
+              <button onClick={addInsuranceProduct} className="w-full border border-dashed border-white/[0.1] rounded-xl py-3 text-sm text-white/40 hover:text-white/60 hover:border-white/[0.2] transition-all">+ Add Product</button>
+            </>
+          )}
+          {tab === 'vehicles' && form.business_type !== 'gym' && form.business_type !== 'insurance' && (
             <>
               <p className="text-xs text-white/40">Add vehicles to feature on the landing page.</p>
               {form.vehicles.map((v: Vehicle, idx: number) => (
@@ -702,7 +741,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
             disabled={saving || !form.dealership_name || !form.subdomain}
             className="text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-6 py-2.5 rounded-lg transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-red-600/20 disabled:opacity-50 disabled:transform-none"
           >
-            {saving ? 'Saving...' : isEdit ? 'Save Changes' : form.business_type === 'gym' ? 'Create Gym' : 'Create Dealership'}
+            {saving ? 'Saving...' : isEdit ? 'Save Changes' : form.business_type === 'gym' ? 'Create Gym' : form.business_type === 'insurance' ? 'Create Agency' : 'Create Dealership'}
           </button>
         </div>
       </div>
