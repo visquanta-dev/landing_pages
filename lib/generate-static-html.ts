@@ -70,9 +70,14 @@ function sharedStyles(c: string, cDark: string): string {
 
 function navHTML(d: Dealership, c: string): string {
   const isGym = d.business_type === 'gym'
+  const isInsurance = d.business_type === 'insurance'
+  const linkStyle = `color:#A0A0A0;text-decoration:none;font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase`
   const thirdLink = isGym
-    ? `<a href="/#services" style="color:#A0A0A0;text-decoration:none;font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase">Classes &amp; Training</a>`
-    : `<a href="/#vehicles" style="color:#A0A0A0;text-decoration:none;font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase">Vehicles</a>`
+    ? `<a href="/#services" style="${linkStyle}">Classes &amp; Training</a>`
+    : isInsurance
+    ? `<a href="/#products" style="${linkStyle}">Coverage</a>`
+    : `<a href="/#vehicles" style="${linkStyle}">Vehicles</a>`
+  const ctaLabel = isInsurance ? 'Get Quote' : 'Book Now'
 
   return `<nav id="lp-nav">
     <a href="/" style="display:flex;align-items:center;gap:14px;text-decoration:none">
@@ -84,9 +89,9 @@ function navHTML(d: Dealership, c: string): string {
       <a href="/#how" style="color:#A0A0A0;text-decoration:none;font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase">How It Works</a>
       ${thirdLink}
       <a href="/#info" style="color:#A0A0A0;text-decoration:none;font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase">Contact</a>
-      <a href="/#booking" style="background:${esc(c)};color:#fff;padding:11px 28px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;letter-spacing:0.06em;text-transform:uppercase">Book Now</a>
+      <a href="/#booking" style="background:${esc(c)};color:#fff;padding:11px 28px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;letter-spacing:0.06em;text-transform:uppercase">${ctaLabel}</a>
     </div>
-    <a class="lp-mobile-cta" href="/#booking" style="display:none;background:${esc(c)};color:#fff;padding:11px 28px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;letter-spacing:0.06em;text-transform:uppercase">Book Now</a>
+    <a class="lp-mobile-cta" href="/#booking" style="display:none;background:${esc(c)};color:#fff;padding:11px 28px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;letter-spacing:0.06em;text-transform:uppercase">${ctaLabel}</a>
   </nav>`
 }
 
@@ -125,6 +130,12 @@ const DEFAULT_GYM_SERVICES = [
   { name: 'Personal Training', icon: '\u{1F4AA}', desc: 'One-on-one sessions tailored to your goals with certified trainers.' },
 ]
 
+const DEFAULT_INSURANCE_PRODUCTS = [
+  { name: 'Auto Insurance', icon: '\u{1F697}', desc: 'Comprehensive coverage for your vehicles with competitive rates and bundling options.' },
+  { name: 'Home Insurance', icon: '\u{1F3E0}', desc: 'Protect your home and belongings with customizable coverage plans.' },
+  { name: 'Life Insurance', icon: '\u{1F6E1}\uFE0F', desc: "Secure your family's future with term and whole life policies." },
+]
+
 export function generateStaticSite(d: Dealership): { file: string; data: string }[] {
   const c = d.primary_color || '#D4132A'
   const cDark = adjustColor(c, -20)
@@ -133,6 +144,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
   const year = new Date().getFullYear()
   const todayMin = new Date().toISOString().split('T')[0]
   const isGym = d.business_type === 'gym'
+  const isInsurance = d.business_type === 'insurance'
 
   const dealerTimes = ['9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM','4:30 PM','5:00 PM','5:30 PM','6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM']
   const gymTimes = ['5:00 AM','5:30 AM','6:00 AM','6:30 AM','7:00 AM','7:30 AM','8:00 AM','8:30 AM',...dealerTimes]
@@ -142,6 +154,8 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     d.sms_consent_text ||
     (isGym
       ? 'By providing your phone number, you consent to receive appointment and service-related text messages from this gym. Message frequency may vary.'
+      : isInsurance
+      ? 'By providing your phone number, you consent to receive policy and service-related text messages from this insurance agency. Message frequency may vary.'
       : 'By providing your phone number, you consent to receive appointment and service-related text messages from this dealership. Message frequency may vary.')
 
   // ── VEHICLES / SERVICES SECTION ──
@@ -165,6 +179,30 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
               <div style="font-size:48px;margin-bottom:20px">${s.icon}</div>
               <p style="font-size:18px;font-weight:600;margin-bottom:10px">${esc(s.name)}</p>
               <p style="font-size:14px;color:#A0A0A0;line-height:1.7;font-weight:300">${esc(s.desc)}</p>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </section>
+  `
+  } else if (isInsurance) {
+    // Insurance products section
+    const insProducts = (d.insurance_products && d.insurance_products.length > 0)
+      ? d.insurance_products.map(p => ({ name: p.name, icon: '\u{1F6E1}\uFE0F', desc: p.description }))
+      : DEFAULT_INSURANCE_PRODUCTS
+
+    middleSectionHTML = `
+    <section id="products" class="lp-section" style="padding:120px 48px;background:#111">
+      <div style="max-width:1280px;margin:0 auto">
+        <p class="lp-reveal" style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:${esc(c)};margin-bottom:16px">What We Offer</p>
+        <h2 class="fd lp-reveal lp-d1" style="font-size:clamp(32px,4vw,48px);font-weight:500;letter-spacing:-0.02em;margin-bottom:16px;line-height:1.1">Coverage Options</h2>
+        <p class="lp-reveal lp-d2" style="font-size:16px;color:#A0A0A0;max-width:500px;margin-bottom:64px;font-weight:300;line-height:1.7">Explore the insurance products available at ${esc(d.dealership_name)}.</p>
+        <div class="lp-3col" style="display:grid;grid-template-columns:repeat(${Math.min(insProducts.length, 3)},1fr);gap:24px">
+          ${insProducts.map((p, i) => `
+            <div class="lp-reveal${i > 0 ? ` lp-d${i}` : ''}" style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:40px 32px;text-align:center">
+              <div style="font-size:48px;margin-bottom:20px">${p.icon}</div>
+              <p style="font-size:18px;font-weight:600;margin-bottom:10px">${esc(p.name)}</p>
+              <p style="font-size:14px;color:#A0A0A0;line-height:1.7;font-weight:300">${esc(p.desc)}</p>
             </div>
           `).join('')}
         </div>
@@ -228,32 +266,64 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
   // ── Business-type-specific content ──
   const metaDescription = isGym
     ? `Book a class, schedule a tour, or inquire about membership at ${esc(d.dealership_name)}. We'll help you get started.`
+    : isInsurance
+    ? `Get an insurance quote or schedule a policy review with ${esc(d.dealership_name)}. We'll help you find the right coverage.`
     : `Book a test drive or service appointment at ${esc(d.dealership_name)}. We'll confirm the earliest available slot for you.`
 
-  const heroSubtitle = isGym ? 'Fitness Center' : 'Appointment Booking'
+  const heroSubtitle = isGym ? 'Fitness Center' : isInsurance ? 'Insurance Agency' : 'Appointment Booking'
   const heroHeading = isGym
     ? `Your Fitness<br><em style="font-style:italic;color:${esc(c)}">Starts Here</em>`
+    : isInsurance
+    ? `Get the Coverage<br><em style="font-style:italic;color:${esc(c)}">You Deserve</em>`
     : `We'll Get You<br><em style="font-style:italic;color:${esc(c)}">Booked In</em>`
   const heroDescription = isGym
     ? `Ready to transform your fitness? Tell us what you're interested in and we'll help you get started at ${esc(d.dealership_name)}.`
+    : isInsurance
+    ? `Looking for a quote or policy review? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to find the right coverage for you.`
     : `Need a test drive or service appointment? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to confirm the earliest available slot.`
-  const heroCta = isGym ? 'Get Started' : 'Book an Appointment'
+  const heroCta = isGym ? 'Get Started' : isInsurance ? 'Get a Quote' : 'Book an Appointment'
   const heroCardOverlay = isGym
     ? `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; Award-Winning Gym`
+    : isInsurance
+    ? `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; Insurance &amp; Financial Services`
     : `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; New &amp; Used Vehicles`
 
   // Trust badges
   const trustBadge1 = isGym
-    ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Award-Winning Gym</div><div style="font-size:12px;color:#666">Best of Marin County</div></div>`
+    ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Certified Trainers</div><div style="font-size:12px;color:#666">Expert fitness professionals</div></div>`
+    : isInsurance
+    ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Licensed Agency</div><div style="font-size:12px;color:#666">${esc(d.brand)} authorized agent</div></div>`
     : `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Verified Dealership</div><div style="font-size:12px;color:#666">Authorized ${esc(d.brand)} Dealer</div></div>`
 
-  // How it works step 1
+  const trustBadge2 = isInsurance
+    ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Fast Quotes</div><div style="font-size:12px;color:#666">Compare rates in minutes</div></div>`
+    : `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Same-Day Response</div><div style="font-size:12px;color:#666">Confirmation within hours</div></div>`
+
+  const trustBadge3 = isInsurance
+    ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">SMS Updates</div><div style="font-size:12px;color:#666">Policy reminders &amp; confirmations</div></div>`
+    : `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">SMS Confirmation</div><div style="font-size:12px;color:#666">Instant booking updates</div></div>`
+
+  // How it works
+  const step1Title = isGym ? 'Choose Your Activity' : isInsurance ? 'Choose Your Coverage' : 'Tell Us What You Need'
   const step1Text = isGym
     ? 'Choose your interest \u2014 group classes, personal training, Pilates, a gym tour, or membership info.'
+    : isInsurance
+    ? 'Tell us what type of insurance you need \u2014 auto, home, life, or a bundle of policies.'
     : "Select whether you'd like a test drive, service appointment, or have a general inquiry about a vehicle."
+  const step2Title = isInsurance ? 'Pick a Time to Talk' : 'Pick Your Preferred Time'
   const step2Text = isGym
     ? "Let us know when works best and we'll coordinate with the gym to match your schedule."
+    : isInsurance
+    ? "Select a convenient time and we'll coordinate with the agency to schedule your consultation."
     : "Let us know when works best and we'll coordinate with the dealership to match your schedule."
+  const step3Title = isInsurance ? 'Get Your Quote' : 'We Confirm Your Slot'
+  const step3Text = isInsurance
+    ? `We work directly with ${esc(d.dealership_name)} to get you the best rates and confirm your appointment via SMS.`
+    : `We work directly with ${esc(d.dealership_name)} to get you the earliest available appointment and confirm via SMS.`
+
+  // Booking form heading
+  const bookingHeading = isInsurance ? 'Get Your Quote' : 'Book Your Appointment'
+  const submitLabel = isInsurance ? 'Submit Quote Request' : 'Submit Appointment Request'
 
   // Form service options
   const serviceOptions = isGym
@@ -264,6 +334,15 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
             <option>Personal Training Inquiry</option>
             <option>Pilates Reformer+ Info</option>
             <option>General Question</option>`
+    : isInsurance
+    ? `<option value="" disabled selected>Select an option</option>
+            <option>Get an Auto Insurance Quote</option>
+            <option>Get a Home Insurance Quote</option>
+            <option>Life Insurance Inquiry</option>
+            <option>Bundle / Multi-Policy Discount</option>
+            <option>Policy Review / Renewal</option>
+            <option>File a Claim</option>
+            <option>General Question</option>`
     : `<option value="" disabled selected>Select an option</option>
             <option>Schedule a Test Drive</option>
             <option>Book a Service Appointment</option>
@@ -272,12 +351,15 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
 
   const textareaPlaceholder = isGym
     ? 'Tell us more \u2014 class interest, fitness goals, preferred schedule, etc.'
+    : isInsurance
+    ? 'Tell us more \u2014 current coverage, vehicles/property to insure, budget, etc.'
     : 'Tell us more \u2014 vehicle of interest, type of service, etc.'
 
-  const infoSectionLabel = isGym ? 'Gym Details' : 'Dealership Details'
+  const infoSectionLabel = isGym ? 'Gym Details' : isInsurance ? 'Agency Details' : 'Dealership Details'
+  const phoneLabel = isGym ? 'Phone' : isInsurance ? 'Office' : 'Sales'
 
-  // Date validation script (no Sunday restriction for gyms)
-  const dateChangeScript = isGym
+  // Date validation script (no Sunday restriction for gyms or insurance agencies)
+  const dateChangeScript = isGym || isInsurance
     ? 'function handleDateChange(input) {}'
     : `function handleDateChange(input) {
       var date = new Date(input.value + 'T00:00:00');
@@ -353,11 +435,11 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       </div>
       <div style="display:flex;align-items:center;gap:14px">
         <div style="width:44px;height:44px;border-radius:10px;background:${c}14;border:1px solid ${c}1f;display:flex;align-items:center;justify-content:center;font-size:18px">\u23F1\uFE0F</div>
-        <div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Same-Day Response</div><div style="font-size:12px;color:#666">Confirmation within hours</div></div>
+        ${trustBadge2}
       </div>
       <div style="display:flex;align-items:center;gap:14px">
         <div style="width:44px;height:44px;border-radius:10px;background:${c}14;border:1px solid ${c}1f;display:flex;align-items:center;justify-content:center;font-size:18px">\u{1F4AC}</div>
-        <div><div style="font-size:14px;font-weight:500;color:#E8E8E8">SMS Confirmation</div><div style="font-size:12px;color:#666">Instant booking updates</div></div>
+        ${trustBadge3}
       </div>
     </div>
   </section>
@@ -371,18 +453,18 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       <div class="lp-3col" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
         <div class="lp-reveal" style="padding:40px 32px;background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px">
           <div class="fd" style="font-size:48px;font-weight:400;color:${c}33;line-height:1;margin-bottom:20px">01</div>
-          <h3 style="font-size:18px;font-weight:600;margin-bottom:10px">Tell Us What You Need</h3>
+          <h3 style="font-size:18px;font-weight:600;margin-bottom:10px">${step1Title}</h3>
           <p style="font-size:14px;color:#A0A0A0;line-height:1.7;font-weight:300">${step1Text}</p>
         </div>
         <div class="lp-reveal lp-d1" style="padding:40px 32px;background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px">
           <div class="fd" style="font-size:48px;font-weight:400;color:${c}33;line-height:1;margin-bottom:20px">02</div>
-          <h3 style="font-size:18px;font-weight:600;margin-bottom:10px">Pick Your Preferred Time</h3>
+          <h3 style="font-size:18px;font-weight:600;margin-bottom:10px">${step2Title}</h3>
           <p style="font-size:14px;color:#A0A0A0;line-height:1.7;font-weight:300">${step2Text}</p>
         </div>
         <div class="lp-reveal lp-d2" style="padding:40px 32px;background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px">
           <div class="fd" style="font-size:48px;font-weight:400;color:${c}33;line-height:1;margin-bottom:20px">03</div>
-          <h3 style="font-size:18px;font-weight:600;margin-bottom:10px">We Confirm Your Slot</h3>
-          <p style="font-size:14px;color:#A0A0A0;line-height:1.7;font-weight:300">We work directly with ${esc(d.dealership_name)} to get you the earliest available appointment and confirm via SMS.</p>
+          <h3 style="font-size:18px;font-weight:600;margin-bottom:10px">${step3Title}</h3>
+          <p style="font-size:14px;color:#A0A0A0;line-height:1.7;font-weight:300">${step3Text}</p>
         </div>
       </div>
     </div>
@@ -394,7 +476,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
   <section id="booking" class="lp-section" style="padding:120px 48px;position:relative">
     <div style="max-width:680px;margin:0 auto">
       <p class="lp-reveal" style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:${esc(c)};margin-bottom:16px">Get Started</p>
-      <h2 class="fd lp-reveal lp-d1" style="font-size:clamp(36px,5vw,56px);font-weight:500;letter-spacing:-0.02em;margin-bottom:16px;line-height:1.1;color:#FFFFFF">Book Your Appointment</h2>
+      <h2 class="fd lp-reveal lp-d1" style="font-size:clamp(36px,5vw,56px);font-weight:500;letter-spacing:-0.02em;margin-bottom:16px;line-height:1.1;color:#FFFFFF">${bookingHeading}</h2>
       <p class="lp-reveal lp-d2" style="font-size:16px;color:#A0A0A0;max-width:500px;margin-bottom:64px;font-weight:300;line-height:1.7">Fill in your details and we'll handle the rest.</p>
 
       <form id="lp-form" class="lp-form-card lp-reveal lp-d3" onsubmit="handleSubmit(event)" style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:52px;position:relative;overflow:hidden">
@@ -447,7 +529,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
         ${smsConsentHTML}
 
         <button type="submit" id="submit-btn" style="margin-top:32px;width:100%;padding:22px;background:${esc(c)};color:#FFFFFF;border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:18px;font-weight:700;cursor:pointer;letter-spacing:0.05em;text-transform:uppercase;transition:all 0.3s ease;box-shadow:0 8px 30px ${c}33">
-          Submit Appointment Request
+          ${submitLabel}
         </button>
         <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:20px">
           <a href="/privacy-policy" style="font-size:12px;color:#333;text-decoration:none">Privacy Policy</a>
@@ -477,7 +559,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
           <div class="lp-reveal lp-d3" style="display:flex;gap:18px;align-items:flex-start;margin-bottom:32px">
             <div style="width:48px;height:48px;border-radius:12px;background:${c}0f;border:1px solid ${c}1a;display:flex;align-items:center;justify-content:center;font-size:20px">\u{1F4DE}</div>
             <div>
-              <p style="font-size:11px;color:#333;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;font-weight:600">Sales</p>
+              <p style="font-size:11px;color:#333;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;font-weight:600">${phoneLabel}</p>
               <p style="font-size:16px;font-weight:500"><a href="tel:${d.phone_sales?.replace(/\D/g, '')}" style="color:#E8E8E8;text-decoration:none">${esc(d.phone_sales)}</a></p>
             </div>
           </div>
@@ -536,7 +618,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       setTimeout(function() {
         btn.disabled = false;
         btn.style.opacity = '1';
-        btn.textContent = 'Submit Appointment Request';
+        btn.textContent = '${submitLabel}';
         document.getElementById('success-modal').classList.add('active');
       }, 1500);
     }
