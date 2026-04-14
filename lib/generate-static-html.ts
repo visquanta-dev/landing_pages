@@ -145,6 +145,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
   const todayMin = new Date().toISOString().split('T')[0]
   const isGym = d.business_type === 'gym'
   const isInsurance = d.business_type === 'insurance'
+  const isTrajector = d.subdomain === 'trajectordisability'
 
   const dealerTimes = ['9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM','4:30 PM','5:00 PM','5:30 PM','6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM']
   const gymTimes = ['5:00 AM','5:30 AM','6:00 AM','6:30 AM','7:00 AM','7:30 AM','8:00 AM','8:30 AM',...dealerTimes]
@@ -268,6 +269,8 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? `Book a class, schedule a tour, or inquire about membership at ${esc(d.dealership_name)}. We'll help you get started.`
     : isInsurance
     ? `Get an insurance quote or schedule a policy review with ${esc(d.dealership_name)}. We'll help you find the right coverage.`
+    : isTrajector
+    ? `Book an appointment with ${esc(d.dealership_name)}. We'll confirm the earliest available slot for you.`
     : `Book a test drive or service appointment at ${esc(d.dealership_name)}. We'll confirm the earliest available slot for you.`
 
   const heroSubtitle = isGym ? 'Fitness Center' : isInsurance ? 'Insurance Agency' : 'Appointment Booking'
@@ -280,12 +283,16 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? `Ready to transform your fitness? Tell us what you're interested in and we'll help you get started at ${esc(d.dealership_name)}.`
     : isInsurance
     ? `Looking for a quote or policy review? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to find the right coverage for you.`
+    : isTrajector
+    ? `Need an appointment? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to confirm the earliest available slot.`
     : `Need a test drive or service appointment? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to confirm the earliest available slot.`
   const heroCta = isGym ? 'Get Started' : isInsurance ? 'Get a Quote' : 'Book an Appointment'
   const heroCardOverlay = isGym
     ? `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; Award-Winning Gym`
     : isInsurance
     ? `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; Insurance &amp; Financial Services`
+    : isTrajector
+    ? `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; Insurance`
     : `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; New &amp; Used Vehicles`
 
   // Trust badges
@@ -355,7 +362,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? 'Tell us more \u2014 current coverage, vehicles/property to insure, budget, etc.'
     : 'Tell us more \u2014 vehicle of interest, type of service, etc.'
 
-  const infoSectionLabel = isGym ? 'Gym Details' : isInsurance ? 'Agency Details' : 'Dealership Details'
+  const infoSectionLabel = isGym ? 'Gym Details' : isInsurance ? 'Agency Details' : isTrajector ? 'Agent Details' : 'Dealership Details'
   const phoneLabel = isGym ? 'Phone' : isInsurance ? 'Office' : 'Sales'
 
   // Date validation script (no Sunday restriction for gyms or insurance agencies)
