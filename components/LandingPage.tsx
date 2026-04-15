@@ -441,7 +441,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                       style={{ marginTop: 3, width: 18, height: 18, accentColor: c, flexShrink: 0, cursor: 'pointer' }}
                     />
                     <label style={{ fontSize: 15, lineHeight: 1.65, color: '#B0B0B0', cursor: 'pointer' }}>
-                      I agree to receive text messages from {d.dealership_name}. Message & data rates may apply. Reply STOP to opt out.
+                      I agree to receive recurring text messages from {d.dealership_name} at the number provided. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe.
                     </label>
                   </div>
                 </div>
@@ -519,7 +519,14 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
             <p style={{ marginBottom: 16 }}>No mobile information will be shared with third parties/affiliates for marketing/promotional purposes. Information sharing to subcontractors in support services is permitted. All other use case categories exclude text messaging originator opt-in data and consent.</p>
             <h2 style={{ fontSize: 18, fontWeight: 600, margin: '36px 0 12px', color: '#E8E8E8' }}>4. Data Security</h2>
             <p style={{ marginBottom: 16 }}>We are committed to protecting your personal information using industry-standard security measures.</p>
-            <h2 style={{ fontSize: 18, fontWeight: 600, margin: '36px 0 12px', color: '#E8E8E8' }}>5. Contact Us</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 600, margin: '36px 0 12px', color: '#E8E8E8' }}>5. SMS / Text Messaging Program</h2>
+            <p style={{ marginBottom: 16 }}>When you provide your mobile phone number through a form on this website and check the SMS consent box, you agree to receive recurring text messages from {d.legal_entity_name}{d.dba_name ? ` (DBA ${d.dba_name})` : ''} related to appointments, service updates, and account notifications. Consent is not a condition of purchase.</p>
+            <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Message frequency:</strong> Message frequency may vary based on your interactions with us.</p>
+            <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Costs:</strong> Message and data rates may apply. Check with your mobile carrier for details.</p>
+            <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Help:</strong> Reply HELP for help{d.phone_sms_help ? ` or call ${d.phone_sms_help}` : ''}{d.email ? ` or email ${d.email}` : ''}.</p>
+            <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Opt-out:</strong> Reply STOP to unsubscribe at any time. After unsubscribing, you will receive one confirmation message and no further texts.</p>
+            <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Privacy of mobile information:</strong> No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. Mobile opt-in data and consent will not be shared with any third party.</p>
+            <h2 style={{ fontSize: 18, fontWeight: 600, margin: '36px 0 12px', color: '#E8E8E8' }}>6. Contact Us</h2>
             <p>If you have questions about this Privacy Policy, please contact us at: {d.phone_sales && <a href={`tel:${d.phone_sales.replace(/\D/g, '')}`} style={{ color: c }}>{d.phone_sales}</a>}{d.email && <span> or <a href={`mailto:${d.email}`} style={{ color: c }}>{d.email}</a></span>}. Website: {d.subdomain}.visquanta.com</p>
           </div>
         </div>
@@ -536,7 +543,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
             <li style={{ marginBottom: 12 }}>You can cancel at any time by replying STOP.</li>
             <li style={{ marginBottom: 12 }}>If you experience issues, reply HELP for assistance{d.phone_sms_help ? ` or call ${d.phone_sms_help}` : ''}{d.email ? ` or email ${d.email}` : ''}.</li>
             <li style={{ marginBottom: 12 }}>Carriers are not liable for delayed or undelivered messages.</li>
-            <li style={{ marginBottom: 12 }}>Message frequency may vary. Msg & data rates may apply.</li>
+            <li style={{ marginBottom: 12 }}>Message frequency may vary. Message and data rates may apply.</li>
             <li style={{ marginBottom: 12 }}>For privacy-related inquiries, please refer to our <a href="#" onClick={(e) => { e.preventDefault(); showPage('privacy') }} style={{ color: c }}>Privacy Policy</a>.</li>
           </ol>
         </div>

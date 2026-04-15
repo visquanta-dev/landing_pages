@@ -7,11 +7,11 @@ export function generateSmsTemplates(legalEntityName: string, dbaName: string, p
   const dba = dbaName
 
   return {
-    sms_consent_text: `By providing your phone number, you consent to receive recurring SMS appointment confirmations, reminders, rescheduling options, and service updates from ${legal} (DBA ${dba}). Message frequency may vary. Msg & data rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase. We will not share your information with third parties for marketing purposes.`,
+    sms_consent_text: `By providing your phone number, you consent to receive recurring text messages from ${legal}${dba && dba !== legal ? ` (DBA ${dba})` : ''}, including appointment confirmations, reminders, and account-related updates. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.`,
 
-    sms_checkbox_label: `I agree to receive recurring SMS appointment confirmations, reminders, rescheduling options, and service updates from ${legal} (DBA ${dba}).`,
+    sms_checkbox_label: `I agree to receive recurring text messages from ${legal}${dba && dba !== legal ? ` (DBA ${dba})` : ''}. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe.`,
 
-    sms_optin_response: `${legal}: You are subscribed to receive recurring automated appointment confirmations and service updates. Message frequency may vary. Msg & data rates may apply. Reply STOP to cancel or HELP for help.`,
+    sms_optin_response: `${legal}: You are subscribed to recurring automated messages. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe.`,
 
     sms_optout_response: `${legal}: You are unsubscribed and will receive no further messages. Reply HELP for help.`,
 

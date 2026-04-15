@@ -153,11 +153,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
 
   const smsConsentText =
     d.sms_consent_text ||
-    (isGym
-      ? 'By providing your phone number, you consent to receive appointment and service-related text messages from this gym. Message frequency may vary.'
-      : isInsurance
-      ? 'By providing your phone number, you consent to receive policy and service-related text messages from this insurance agency. Message frequency may vary.'
-      : 'By providing your phone number, you consent to receive appointment and service-related text messages from this dealership. Message frequency may vary.')
+    `By providing your phone number, you consent to receive recurring text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''}, including appointment confirmations, reminders, and account-related updates. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.`
 
   // ── VEHICLES / SERVICES SECTION ──
   let middleSectionHTML = ''
@@ -258,7 +254,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       <div style="display:flex;gap:14px;align-items:flex-start;padding-top:18px;border-top:1px solid rgba(255,255,255,0.06)">
         <input id="sms-consent-checkbox" type="checkbox" style="margin-top:3px;width:18px;height:18px;accent-color:${esc(c)};flex-shrink:0;cursor:pointer" />
         <label style="font-size:15px;line-height:1.65;color:#B0B0B0;cursor:pointer">
-          I agree to receive text messages from ${esc(d.dealership_name)}. Message &amp; data rates may apply. Reply STOP to opt out.
+          I agree to receive recurring text messages from ${esc(d.dealership_name)} at the number provided. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe.
         </label>
       </div>
     </div>
@@ -664,7 +660,14 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       <p style="margin-bottom:16px">No mobile information will be shared with third parties/affiliates for marketing/promotional purposes. Information sharing to subcontractors in support services is permitted. All other use case categories exclude text messaging originator opt-in data and consent.</p>
       <h2 style="font-size:18px;font-weight:600;margin:36px 0 12px;color:#E8E8E8">4. Data Security</h2>
       <p style="margin-bottom:16px">We are committed to protecting your personal information using industry-standard security measures.</p>
-      <h2 style="font-size:18px;font-weight:600;margin:36px 0 12px;color:#E8E8E8">5. Contact Us</h2>
+      <h2 style="font-size:18px;font-weight:600;margin:36px 0 12px;color:#E8E8E8">5. SMS / Text Messaging Program</h2>
+      <p style="margin-bottom:16px">When you provide your mobile phone number through a form on this website and check the SMS consent box, you agree to receive recurring text messages from ${esc(d.legal_entity_name)}${d.dba_name ? ` (DBA ${esc(d.dba_name)})` : ''} related to appointments, service updates, and account notifications. Consent is not a condition of purchase.</p>
+      <p style="margin-bottom:16px"><strong style="color:#E8E8E8;font-weight:500">Message frequency:</strong> Message frequency may vary based on your interactions with us.</p>
+      <p style="margin-bottom:16px"><strong style="color:#E8E8E8;font-weight:500">Costs:</strong> Message and data rates may apply. Check with your mobile carrier for details.</p>
+      <p style="margin-bottom:16px"><strong style="color:#E8E8E8;font-weight:500">Help:</strong> Reply HELP for help${d.phone_sms_help ? ` or call ${esc(d.phone_sms_help)}` : ''}${d.email ? ` or email ${esc(d.email)}` : ''}.</p>
+      <p style="margin-bottom:16px"><strong style="color:#E8E8E8;font-weight:500">Opt-out:</strong> Reply STOP to unsubscribe at any time. After unsubscribing, you will receive one confirmation message and no further texts.</p>
+      <p style="margin-bottom:16px"><strong style="color:#E8E8E8;font-weight:500">Privacy of mobile information:</strong> No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. Mobile opt-in data and consent will not be shared with any third party.</p>
+      <h2 style="font-size:18px;font-weight:600;margin:36px 0 12px;color:#E8E8E8">6. Contact Us</h2>
       <p>If you have questions about this Privacy Policy, please contact us at: ${d.phone_sales ? `<a href="tel:${d.phone_sales.replace(/\D/g, '')}" style="color:${esc(c)}">${esc(d.phone_sales)}</a>` : ''}${d.email ? ` or <a href="mailto:${esc(d.email)}" style="color:${esc(c)}">${esc(d.email)}</a>` : ''}. Website: ${esc(d.subdomain)}.visquanta.com</p>
     </div>
   </div>
@@ -694,7 +697,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       <li style="margin-bottom:12px">You can cancel at any time by replying STOP.</li>
       <li style="margin-bottom:12px">If you experience issues, reply HELP for assistance${d.phone_sms_help ? ` or call ${esc(d.phone_sms_help)}` : ''}${d.email ? ` or email ${esc(d.email)}` : ''}.</li>
       <li style="margin-bottom:12px">Carriers are not liable for delayed or undelivered messages.</li>
-      <li style="margin-bottom:12px">Message frequency may vary. Msg &amp; data rates may apply.</li>
+      <li style="margin-bottom:12px">Message frequency may vary. Message and data rates may apply.</li>
       <li style="margin-bottom:12px">For privacy-related inquiries, please refer to our <a href="/privacy-policy" style="color:${esc(c)}">Privacy Policy</a>.</li>
     </ol>
   </div>
