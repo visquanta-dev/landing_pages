@@ -4,6 +4,8 @@ import { generateStaticSite } from '@/lib/generate-static-html'
 
 const VERCEL_TOKEN = process.env.VQ_VERCEL_TOKEN
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID
+const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN
+const CLOUDFLARE_ZONE_ID = process.env.CLOUDFLARE_ZONE_ID || '27fb2e9b237618a7855003324988899c'
 
 function vercelHeaders() {
   return {
@@ -14,6 +16,186 @@ function vercelHeaders() {
 
 function teamParam() {
   return VERCEL_TEAM_ID ? `?teamId=${VERCEL_TEAM_ID}` : ''
+}
+
+function queryString(params: Record<string, string | undefined>) {
+  const search = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value) search.set(key, value)
+  }
+  const qs = search.toString()
+  return qs ? `?${qs}` : ''
+}
+
+function teamQuery(extra: Record<string, string | undefined> = {}) {
+  return queryString({ ...extra, teamId: VERCEL_TEAM_ID })
+}
+
+function cloudflareHeaders() {
+  return {
+    Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
+    'Content-Type': 'application/json',
+  }
+}
+
+async function readJson(res: Response) {
+  const text = await res.text()
+  if (!text) return null
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
+}
+
+async function getVercelProjectDomain(projectId: string, domain: string) {
+  const res = await fetch(
+    `https://api.vercel.com/v9/projects/${projectId}/domains/${domain}${teamQuery()}`,
+    { headers: vercelHeaders() }
+  )
+
+  if (!res.ok) return null
+  return readJson(res)
+}
+
+async function getVercelDomainConfig(projectId: string, domain: string) {
+  const res = await fetch(
+    `https://api.vercel.com/v6/domains/${domain}/config${teamQuery({ projectIdOrName: projectId })}`,
+    { headers: vercelHeaders() }
+  )
+
+  if (!res.ok) return null
+  return readJson(res)
+}
+
+async function verifyVercelProjectDomain(projectId: string, domain: string) {
+  const res = await fetch(
+    `https://api.vercel.com/v9/projects/${projectId}/domains/${domain}/verify${teamQuery()}`,
+    { method: 'POST', headers: vercelHeaders() }
+  )
+
+  return {
+    ok: res.ok,
+    status: res.status,
+    data: await readJson(res),
+  }
+}
+
+function normalizeDnsValue(value: string) {
+  return value.replace(/\.$/, '')
+}
+
+async function listCloudflareRecords(type: string, name: string) {
+  const res = await fetch(
+    `https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records${queryString({ type, name })}`,
+    { headers: cloudflareHeaders() }
+  )
+
+  const data = await readJson(res)
+  if (!res.ok || !data?.success) {
+    throw new Error(`Cloudflare list ${type} ${name} failed: ${JSON.stringify(data)}`)
+  }
+  return data.result || []
+}
+
+async function upsertCloudflareRecord(record: {
+  type: 'CNAME' | 'TXT'
+  name: string
+  content: string
+  ttl?: number
+  proxied?: boolean
+  comment?: string
+}) {
+  const records = await listCloudflareRecords(record.type, record.name)
+  const normalizedContent = normalizeDnsValue(record.content)
+  const exact = records.find((r: any) => normalizeDnsValue(r.content) === normalizedContent)
+  const existing = exact || (record.type === 'CNAME' ? records[0] : null)
+  const payload = {
+    type: record.type,
+    name: record.name,
+    content: record.content,
+    ttl: record.ttl ?? 1,
+    ...(record.type === 'CNAME' ? { proxied: record.proxied ?? false } : {}),
+    ...(record.comment ? { comment: record.comment } : {}),
+  }
+
+  const res = await fetch(
+    `https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records${existing ? `/${existing.id}` : ''}`,
+    {
+      method: existing ? 'PATCH' : 'POST',
+      headers: cloudflareHeaders(),
+      body: JSON.stringify(payload),
+    }
+  )
+
+  const data = await readJson(res)
+  if (!res.ok || !data?.success) {
+    throw new Error(`Cloudflare ${existing ? 'update' : 'create'} ${record.type} ${record.name} failed: ${JSON.stringify(data)}`)
+  }
+
+  return {
+    id: data.result?.id,
+    type: record.type,
+    name: record.name,
+    content: record.content,
+    action: existing ? 'updated' : 'created',
+  }
+}
+
+async function configureCloudflareForVercelDomain(projectId: string, domain: string, domainData: any) {
+  if (!CLOUDFLARE_API_TOKEN) {
+    return {
+      configured: false,
+      skipped: true,
+      error: 'CLOUDFLARE_API_TOKEN not configured',
+      records: [],
+    }
+  }
+
+  try {
+    const config = await getVercelDomainConfig(projectId, domain)
+    const recommendedCname = config?.recommendedCNAME
+      ?.slice()
+      ?.sort((a: any, b: any) => (a.rank || 999) - (b.rank || 999))
+      ?.[0]?.value || 'cname.vercel-dns.com'
+
+    const records = [
+      await upsertCloudflareRecord({
+        type: 'CNAME',
+        name: domain,
+        content: normalizeDnsValue(recommendedCname),
+        proxied: false,
+        comment: 'Managed by VisQuanta landing page deploy automation',
+      }),
+    ]
+
+    for (const verification of domainData?.verification || []) {
+      if (verification.type !== 'TXT' || !verification.domain || !verification.value) continue
+      records.push(await upsertCloudflareRecord({
+        type: 'TXT',
+        name: verification.domain,
+        content: verification.value,
+        comment: `Managed by VisQuanta Vercel verification for ${domain}`,
+      }))
+    }
+
+    const verification = await verifyVercelProjectDomain(projectId, domain)
+
+    return {
+      configured: true,
+      skipped: false,
+      config,
+      records,
+      verification,
+    }
+  } catch (e: any) {
+    return {
+      configured: false,
+      skipped: false,
+      error: e.message,
+      records: [],
+    }
+  }
 }
 
 // POST — Deploy a dealer as a standalone Vercel project
@@ -123,21 +305,34 @@ export async function POST(req: NextRequest) {
       }
     )
 
+    let domainData: any = null
     let domainStatus = { added: false, verified: false, error: '' }
     if (domainRes.ok) {
-      const domainData = await domainRes.json()
+      domainData = await domainRes.json()
       domainStatus = { added: true, verified: domainData.verified || false, error: '' }
     } else {
       const domainErr = await domainRes.json()
       // "already exists" is fine
       if (domainErr.error?.code === 'domain_already_in_use' || domainErr.error?.code === 'DOMAIN_ALREADY_IN_USE') {
-        domainStatus = { added: true, verified: true, error: '' }
+        domainData = await getVercelProjectDomain(projectId, domain)
+        domainStatus = { added: true, verified: domainData?.verified || false, error: '' }
       } else {
         domainStatus = { added: false, verified: false, error: JSON.stringify(domainErr) }
       }
     }
 
-    // 6. Update dealer record with deployment info
+    // 6. Configure Cloudflare DNS and ask Vercel to verify the domain.
+    let dnsStatus = null
+    if (domainStatus.added && domainData) {
+      dnsStatus = await configureCloudflareForVercelDomain(projectId, domain, domainData)
+      const latestDomainData = await getVercelProjectDomain(projectId, domain)
+      if (latestDomainData) {
+        domainData = latestDomainData
+        domainStatus = { added: true, verified: latestDomainData.verified || false, error: '' }
+      }
+    }
+
+    // 7. Update dealer record with deployment info
     await supabase
       .from('dealerships')
       .update({
@@ -160,7 +355,9 @@ export async function POST(req: NextRequest) {
       },
       domain: {
         name: domain,
+        verification: domainData?.verification || null,
         ...domainStatus,
+        dns: dnsStatus,
       },
       liveUrl: `https://${domain}`,
     })
@@ -203,8 +400,14 @@ export async function GET(req: NextRequest) {
     )
 
     let domainInfo = null
+    let dnsStatus = null
     if (domRes.ok) {
       domainInfo = await domRes.json()
+      if (!domainInfo.verified) {
+        dnsStatus = await configureCloudflareForVercelDomain(project.id, domain, domainInfo)
+        const refreshed = await getVercelProjectDomain(project.id, domain)
+        if (refreshed) domainInfo = refreshed
+      }
     }
 
     // Get latest deployment
@@ -229,6 +432,7 @@ export async function GET(req: NextRequest) {
         name: domain,
         verified: domainInfo.verified,
         verification: domainInfo.verification,
+        dns: dnsStatus,
       } : null,
       latestDeployment: latestDeployment ? {
         id: latestDeployment.uid,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { defaultServicesForBusinessType, inferBusinessTypeFromText } from '@/lib/site-niche'
 
 export const maxDuration = 60
 const SCRAPE_BUDGET_MS = 55000
@@ -20,10 +21,14 @@ export async function POST(req: NextRequest) {
     const extractStartedAt = Date.now()
     const hasBudget = () => Date.now() - extractStartedAt < PROCESSING_BUDGET_MS
 
+    const pageText = `${extractMeta(html, 'title')} ${extractMeta(html, 'description')} ${stripTags(html).slice(0, 12000)}`
+    const businessType = timedExtract('business_type', () => inferBusinessTypeFromText(pageText))
+
     const result = {
       source_url: targetUrl,
       dealership_name: timedExtract('dealership_name', () => extractDealerName(html)),
       brand: timedExtract('brand', () => extractBrand(html)),
+      business_type: businessType,
       logo_url: timedExtract('logo_url', () => extractLogo(html, baseUrl)),
       phone_sales: timedExtract('phone_sales', () => extractPhones(html)),
       address: hasBudget()
@@ -43,6 +48,7 @@ export async function POST(req: NextRequest) {
         : [],
       meta_description: timedExtract('meta_description', () => extractMeta(html, 'description')),
       meta_title: timedExtract('meta_title', () => extractMeta(html, 'title')),
+      services: defaultServicesForBusinessType(businessType),
     }
 
     console.log('[scrape] Total request duration(ms):', Date.now() - requestStartedAt)
@@ -410,4 +416,13 @@ function formatTime(time: string): string {
 
 function cleanText(text: string): string {
   return text.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim()
+}
+
+function stripTags(html: string): string {
+  return cleanText(
+    html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+  )
 }

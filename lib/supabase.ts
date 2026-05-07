@@ -24,7 +24,7 @@ export type Dealership = {
   created_at: string
   updated_at: string
   is_active: boolean
-  business_type: 'dealership' | 'gym' | 'insurance'
+  business_type: string
   subdomain: string
   dealership_name: string
   legal_entity_name: string

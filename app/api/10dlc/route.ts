@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { stripInternalCampaignFields } from '@/lib/telnyx-10dlc'
 
 const TELNYX_API_KEY = process.env.TELNYX_API_KEY || ''
 const TELNYX_BASE = 'https://api.telnyx.com/v2'
@@ -96,7 +97,8 @@ export async function POST(req: NextRequest) {
     const { action, ...payload } = body
 
     if (action === 'create_campaign') {
-      const result = await telnyxPost('/10dlc/campaignBuilder', payload.campaign)
+      const campaign = stripInternalCampaignFields(payload.campaign)
+      const result = await telnyxPost('/10dlc/campaignBuilder', campaign)
       if (result.status >= 400) {
         return NextResponse.json({ error: result.data }, { status: result.status })
       }
@@ -108,11 +110,13 @@ export async function POST(req: NextRequest) {
       const results: any[] = []
 
       for (const campaign of campaigns) {
+        const displayName = campaign._displayName
         try {
-          const result = await telnyxPost('/10dlc/campaignBuilder', campaign)
+          const telnyxCampaign = stripInternalCampaignFields(campaign)
+          const result = await telnyxPost('/10dlc/campaignBuilder', telnyxCampaign)
           results.push({
             brandId: campaign.brandId,
-            displayName: campaign._displayName,
+            displayName,
             success: result.status < 400,
             data: result.data,
             error: result.status >= 400 ? result.data : null,
@@ -120,7 +124,7 @@ export async function POST(req: NextRequest) {
         } catch (e: any) {
           results.push({
             brandId: campaign.brandId,
-            displayName: campaign._displayName,
+            displayName,
             success: false,
             error: e.message,
           })

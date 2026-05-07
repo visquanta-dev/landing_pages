@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { Dealership } from '@/lib/supabase'
+import { businessTypeLabel, defaultServicesForBusinessType, isServiceBusiness } from '@/lib/site-niche'
 
 export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
   const [page, setPage] = useState<'main' | 'privacy' | 'terms'>('main')
@@ -52,6 +53,8 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
 
   const isGym = d.business_type === 'gym'
   const isInsurance = d.business_type === 'insurance'
+  const isCustomService = isServiceBusiness(d.business_type) && !isGym
+  const nicheLabel = businessTypeLabel(d.business_type)
   const hours = d.hours || {}
   const vehicles = d.vehicles || []
   const services = d.services || []
@@ -63,7 +66,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
       ? 'By providing your phone number, you consent to receive appointment and service-related text messages from this gym. Message frequency may vary.'
       : isInsurance
       ? 'By providing your phone number, you consent to receive policy and service-related text messages from this insurance agency. Message frequency may vary.'
-      : 'By providing your phone number, you consent to receive appointment and service-related text messages from this dealership. Message frequency may vary.')
+      : 'By providing your phone number, you consent to receive appointment, booking, reminder, rescheduling, and account-related text messages from this business. Message frequency may vary.')
   const smsCheckboxLabel =
     d.sms_checkbox_label ||
     'I agree to receive recurring automated text messages related to my appointment or service request.'
@@ -76,6 +79,9 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
   const gymServices = services.length > 0
     ? services.map(s => ({ name: s.name, icon: '\u{1F3CB}\uFE0F', desc: s.description }))
     : defaultGymServices
+  const customServices = services.length > 0
+    ? services.map(s => ({ name: s.name, icon: '\u{1F4C5}', desc: s.description }))
+    : defaultServicesForBusinessType(d.business_type).map(s => ({ name: s.name, icon: '\u{1F4C5}', desc: s.description }))
 
   const defaultInsuranceProducts = [
     { name: 'Auto Insurance', icon: '\u{1F697}', desc: 'Comprehensive coverage for your vehicles with competitive rates and bundling options.' },
@@ -144,8 +150,8 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           <span className="fd" style={{ fontSize: 20, fontWeight: 600, color: '#FAFAFA', letterSpacing: '-0.01em' }}>{d.dealership_name}</span>
         </a>
         <div className="lp-nav-links" style={{ display: 'flex', gap: 36, alignItems: 'center' }}>
-          {['Home', 'How It Works', isGym ? 'Classes & Training' : isInsurance ? 'Coverage' : 'Vehicles', 'Contact'].map((label) => {
-            const id = label === 'Home' ? '' : label === 'How It Works' ? 'how' : label === 'Contact' ? 'info' : (isGym ? 'services' : isInsurance ? 'products' : 'vehicles')
+          {['Home', 'How It Works', isCustomService ? 'Services' : isGym ? 'Classes & Training' : isInsurance ? 'Coverage' : 'Vehicles', 'Contact'].map((label) => {
+            const id = label === 'Home' ? '' : label === 'How It Works' ? 'how' : label === 'Contact' ? 'info' : (isCustomService || isGym ? 'services' : isInsurance ? 'products' : 'vehicles')
             return (
               <a key={label} href={`#${id}`}
                 onClick={(e) => {
@@ -195,22 +201,24 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
               <div>
                 <div className="anim-up" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, animation: 'pulse 2.5s ease infinite' }} />
-                  <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: '#A0A0A0' }}>{isGym ? 'Fitness Center' : isInsurance ? 'Insurance Agency' : 'Appointment Booking'}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: '#A0A0A0' }}>{isGym ? 'Fitness Center' : isInsurance ? 'Insurance Agency' : isCustomService ? nicheLabel : 'Appointment Booking'}</span>
                 </div>
                 <h1 className="fd anim-up anim-d1" style={{ fontSize: 'clamp(44px, 5.5vw, 72px)', fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.03em', marginBottom: 28 }}>
-                  {isGym ? <>Your Fitness<br /><em style={{ fontStyle: 'italic', color: c }}>Starts Here</em></> : isInsurance ? <>Get the Coverage<br /><em style={{ fontStyle: 'italic', color: c }}>You Deserve</em></> : <>We'll Get You<br /><em style={{ fontStyle: 'italic', color: c }}>Booked In</em></>}
+                  {isGym ? <>Your Fitness<br /><em style={{ fontStyle: 'italic', color: c }}>Starts Here</em></> : isInsurance ? <>Get the Coverage<br /><em style={{ fontStyle: 'italic', color: c }}>You Deserve</em></> : isCustomService ? <>Let's Get You<br /><em style={{ fontStyle: 'italic', color: c }}>Booked In</em></> : <>We'll Get You<br /><em style={{ fontStyle: 'italic', color: c }}>Booked In</em></>}
                 </h1>
                 <p className="anim-up anim-d2" style={{ fontSize: 17, color: '#A0A0A0', lineHeight: 1.75, maxWidth: 500, marginBottom: 44, fontWeight: 300 }}>
                   {isGym
                     ? `Ready for a trial session or membership consultation? Tell us what you need and we'll connect you with ${d.dealership_name} to get you started.`
                     : isInsurance
                     ? `Looking for a quote or policy review? Tell us what you need and we'll connect you with ${d.dealership_name} to find the right coverage for you.`
+                    : isCustomService
+                    ? `Tell us what you need and we'll connect you with ${d.dealership_name} to confirm the right appointment, booking, or consultation.`
                     : `Need a test drive or service appointment? Tell us what you need and we'll connect you with ${d.dealership_name} to confirm the earliest available slot.`}
                 </p>
                 <div className="anim-up anim-d3 lp-hero-ctas" style={{ display: 'flex', gap: 16 }}>
                   <a href="#booking" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '20px 40px', background: c, color: '#FFFFFF', borderRadius: 8, fontSize: 17, fontWeight: 700, textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' as const, boxShadow: `0 8px 30px ${c}33`, transition: 'all 0.3s ease' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    {isGym ? 'Get Started' : isInsurance ? 'Get a Quote' : 'Book an Appointment'}
+                    {isGym || isCustomService ? 'Get Started' : isInsurance ? 'Get a Quote' : 'Book an Appointment'}
                   </a>
                   <a href="#how" style={{ display: 'inline-flex', alignItems: 'center', padding: '18px 36px', background: 'transparent', color: '#E8E8E8', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, fontSize: 15, fontWeight: 500, textDecoration: 'none' }}>Learn More</a>
                 </div>
@@ -224,7 +232,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                       {d.logo_url && <img src={d.logo_url} alt="" style={{ width: 44, height: 44, objectFit: 'contain', background: '#fff', borderRadius: 8, padding: 5 }} />}
                       <div>
                         <strong style={{ fontSize: 15, display: 'block', marginBottom: 2 }}>{d.dealership_name}</strong>
-                        <span style={{ fontSize: 12, color: '#666' }}>{d.address_city ? `${d.address_city}, ${d.address_state}` : ''}{isGym ? ' • Fitness & Wellness' : isInsurance ? ' • Insurance & Financial Services' : ' • New & Used Vehicles'}</span>
+                        <span style={{ fontSize: 12, color: '#666' }}>{d.address_city ? `${d.address_city}, ${d.address_state}` : ''}{isGym ? ' • Fitness & Wellness' : isInsurance ? ' • Insurance & Financial Services' : isCustomService ? ` • ${nicheLabel}` : ' • New & Used Vehicles'}</span>
                       </div>
                     </div>
                   </div>
@@ -236,7 +244,11 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           {/* TRUST */}
           <section style={{ padding: 48, borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#111' }}>
             <div className="lp-trust-inner" style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', justifyContent: 'center', gap: 64 }}>
-              {(isGym ? [
+              {(isCustomService ? [
+                { icon: '📅', title: `${nicheLabel} Specialist`, sub: 'Personalized support' },
+                { icon: '⏱️', title: 'Fast Response', sub: 'Confirmation within hours' },
+                { icon: '💬', title: 'SMS Confirmation', sub: 'Instant booking updates' },
+              ] : isGym ? [
                 { icon: '🏋️', title: 'Certified Trainers', sub: 'Expert fitness professionals' },
                 { icon: '⏱️', title: 'Flexible Scheduling', sub: 'Classes from early morning to evening' },
                 { icon: '💬', title: 'SMS Confirmation', sub: 'Instant booking updates' },
@@ -267,7 +279,11 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
               <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 16, lineHeight: 1.1 }}>How It Works</h2>
               <p className="lp-reveal lp-d2" style={{ fontSize: 16, color: '#A0A0A0', maxWidth: 500, marginBottom: 64, fontWeight: 300, lineHeight: 1.7 }}>Three easy steps to secure your spot at {d.dealership_name}.</p>
               <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
-                {(isGym ? [
+                {(isCustomService ? [
+                  { num: '01', title: 'Tell Us What You Need', desc: `Tell us what kind of ${nicheLabel.toLowerCase()} help you need and share any important details.` },
+                  { num: '02', title: 'Pick Your Preferred Time', desc: "Select a convenient time and we'll coordinate with the business to match your schedule." },
+                  { num: '03', title: 'We Confirm Your Slot', desc: `We work directly with ${d.dealership_name} to confirm your appointment, booking, or consultation via SMS.` },
+                ] : isGym ? [
                   { num: '01', title: 'Choose Your Activity', desc: "Select a group fitness class, personal training session, Pilates, or schedule a gym tour." },
                   { num: '02', title: 'Pick Your Preferred Time', desc: "Let us know when works best and we'll coordinate with the gym to match your schedule." },
                   { num: '03', title: 'We Confirm Your Spot', desc: `We work directly with ${d.dealership_name} to get you the earliest available session and confirm via SMS.` },
@@ -292,7 +308,25 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           </section>
 
           {/* VEHICLES / SERVICES */}
-          {isGym ? (
+          {isCustomService ? (
+            <section id="services" className="lp-section" style={{ padding: '120px 48px', background: '#111' }}>
+              <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+                <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>What We Offer</p>
+                <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 16, lineHeight: 1.1 }}>Services & Consultations</h2>
+                <p className="lp-reveal lp-d2" style={{ fontSize: 16, color: '#A0A0A0', maxWidth: 500, marginBottom: 64, fontWeight: 300, lineHeight: 1.7 }}>Explore the {nicheLabel.toLowerCase()} services available at {d.dealership_name}.</p>
+                <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(customServices.length, 3)}, 1fr)`, gap: 24 }}>
+                  {customServices.map((s, i) => (
+                    <div key={i} className={`lp-reveal ${i > 0 ? `lp-d${i}` : ''}`}
+                      style={{ background: '#161616', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: '40px 32px' }}>
+                      <div style={{ fontSize: 40, marginBottom: 20 }}>{s.icon}</div>
+                      <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>{s.name}</h3>
+                      <p style={{ fontSize: 14, color: '#A0A0A0', lineHeight: 1.7, fontWeight: 300 }}>{s.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          ) : isGym ? (
             <section id="services" className="lp-section" style={{ padding: '120px 48px', background: '#111' }}>
               <div style={{ maxWidth: 1280, margin: '0 auto' }}>
                 <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>What We Offer</p>
@@ -390,7 +424,10 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>What can we help you with?</label>
                   <select className="lp-input" defaultValue="">
                     <option value="" disabled>Select an option</option>
-                    {isGym ? (<>
+                    {isCustomService ? (<>
+                      {customServices.map(s => <option key={s.name}>{s.name}</option>)}
+                      <option>General Question</option>
+                    </>) : isGym ? (<>
                       <option>Book a Group Fitness Class</option>
                       <option>Schedule a Gym Tour</option>
                       <option>Membership Inquiry</option>
@@ -428,7 +465,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                 </div>
                 <div style={{ marginBottom: 20 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Additional Details</label>
-                  <textarea className="lp-input" placeholder={isGym ? "Tell us more — fitness goals, class preferences, experience level, etc." : isInsurance ? "Tell us more — current coverage, vehicles/property to insure, budget, etc." : "Tell us more — vehicle of interest, type of service, etc."} style={{ minHeight: 100, resize: 'vertical' }} />
+                  <textarea className="lp-input" placeholder={isGym ? "Tell us more — fitness goals, class preferences, experience level, etc." : isInsurance ? "Tell us more — current coverage, vehicles/property to insure, budget, etc." : isCustomService ? "Tell us more about what you need, your preferred timing, and any useful context..." : "Tell us more — vehicle of interest, type of service, etc."} style={{ minHeight: 100, resize: 'vertical' }} />
                 </div>
 
                 {/* SMS Consent */}
@@ -463,7 +500,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           <section id="info" className="lp-section" style={{ padding: '120px 48px', background: '#111' }}>
             <div className="lp-2col" style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'start' }}>
               <div>
-                <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>{isGym ? 'Gym Details' : isInsurance ? 'Agency Details' : 'Dealership Details'}</p>
+                <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>{isGym ? 'Gym Details' : isInsurance ? 'Agency Details' : isCustomService ? 'Business Details' : 'Dealership Details'}</p>
                 <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 40, lineHeight: 1.1 }}>{d.dealership_name}</h2>
                 {d.address_full && (
                   <div className="lp-reveal lp-d2" style={{ display: 'flex', gap: 18, alignItems: 'flex-start', marginBottom: 32 }}>
@@ -480,7 +517,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                   <div className="lp-reveal lp-d3" style={{ display: 'flex', gap: 18, alignItems: 'flex-start', marginBottom: 32 }}>
                     <div style={{ width: 48, height: 48, borderRadius: 12, background: `${c}0f`, border: `1px solid ${c}1a`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📞</div>
                     <div>
-                      <p style={{ fontSize: 11, color: '#333', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 4, fontWeight: 600 }}>{isGym ? 'Phone' : isInsurance ? 'Office' : 'Sales'}</p>
+                      <p style={{ fontSize: 11, color: '#333', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 4, fontWeight: 600 }}>{isGym || isCustomService ? 'Phone' : isInsurance ? 'Office' : 'Sales'}</p>
                       <p style={{ fontSize: 16, fontWeight: 500 }}>
                         <a href={`tel:${d.phone_sales?.replace(/\D/g, '')}`} style={{ color: '#E8E8E8', textDecoration: 'none' }}>{d.phone_sales}</a>
                       </p>
@@ -539,7 +576,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           <h1 className="fd" style={{ fontSize: 40, fontWeight: 500, marginBottom: 8, letterSpacing: '-0.02em' }}>Terms and Conditions</h1>
           <p style={{ fontSize: 13, color: '#333', marginBottom: 48 }}>Effective Date: {d.terms_effective_date || 'Sep 15, 2025'}</p>
           <ol style={{ listStyle: 'decimal', paddingLeft: 20, fontSize: 14, color: '#666', lineHeight: 1.85, fontWeight: 300 }}>
-            <li style={{ marginBottom: 12 }}>This SMS program sends recurring automated appointment confirmations, service reminders, rescheduling notifications, and other account-related updates from {d.legal_entity_name} {d.dba_name ? `(DBA ${d.dba_name})` : ''} (website: {d.subdomain}.visquanta.com) to customers who have opted in. No promotional or marketing messages are sent.</li>
+            <li style={{ marginBottom: 12 }}>This SMS program sends recurring automated appointment confirmations, booking confirmations, reminders, rescheduling notifications, and other account-related updates from {d.legal_entity_name} {d.dba_name ? `(DBA ${d.dba_name})` : ''} (website: {d.subdomain}.visquanta.com) to customers who have opted in. No promotional or marketing messages are sent.</li>
             <li style={{ marginBottom: 12 }}>You can cancel at any time by replying STOP.</li>
             <li style={{ marginBottom: 12 }}>If you experience issues, reply HELP for assistance{d.phone_sms_help ? ` or call ${d.phone_sms_help}` : ''}{d.email ? ` or email ${d.email}` : ''}.</li>
             <li style={{ marginBottom: 12 }}>Carriers are not liable for delayed or undelivered messages.</li>

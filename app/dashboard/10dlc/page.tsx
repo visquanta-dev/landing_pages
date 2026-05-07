@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { buildCampaign } from '@/lib/telnyx-10dlc'
 
 type Brand = {
   brandId: string
@@ -26,33 +27,6 @@ type BulkResult = {
   success: boolean
   data?: any
   error?: any
-}
-
-// Default campaign template
-function buildCampaign(brand: Brand) {
-  const legalName = brand.companyName
-  const dba = brand.dbaName || brand.displayName
-  const domain = brand.domain || 'visquanta.com'
-  const phone = brand.phone || '(000) 000-0000'
-  const contactEmail = brand.contactEmail || `contact@${domain}`
-
-  return {
-    brandId: brand.brandId,
-    _displayName: dba,
-    usecase: 'CUSTOMER_CARE',
-    description: `This campaign is used by ${legalName} (DBA: ${dba}) to send recurring automated SMS appointment confirmations, reminders, and account-related updates to customers who book through the business website at https://${domain} or complete an in-office intake form. Customers provide explicit consent by entering their mobile number and selecting an unchecked SMS consent checkbox prior to form submission. The consent block discloses that message frequency may vary, that message and data rates may apply, and that users may reply HELP for help or STOP to unsubscribe at any time. Consent is not a condition of service or purchase. After submitting the form and providing consent, customers receive a confirmation SMS acknowledging their subscription. No promotional or marketing messages are sent as part of this campaign. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.`,
-    messageFlow: `Customers visit https://${domain} or complete an in-office intake form to book an appointment or consultation. During the booking process, customers provide their mobile number and must check an unchecked SMS consent checkbox before submitting the form. The SMS consent block displays the following disclosure immediately above the checkbox: "By providing your phone number, you consent to receive recurring text messages from ${legalName}${dba && dba !== legalName ? ` (DBA ${dba})` : ''}, including appointment confirmations, reminders, and account-related updates." The opt-in checkbox label reads: "I agree to receive recurring text messages from ${dba} at the number provided. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe." A link to the privacy policy is displayed adjacent to the consent block; the privacy policy contains a dedicated "SMS / Text Messaging Program" section with frequency, rates, HELP, STOP, and mobile-information non-sharing disclosures. Consent is not a condition of service or purchase. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. After form submission and consent, the customer receives the following opt-in confirmation SMS: "${dba}: You are now subscribed to recurring automated notifications from ${dba}. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe."`,
-    helpMessage: `${dba}: For help, call ${phone}. Message and data rates may apply. Reply STOP to unsubscribe.`,
-    optinKeywords: 'START',
-    optoutKeywords: 'STOP',
-    helpKeywords: 'HELP',
-    sample1: `${dba}: Your appointment is confirmed for 3/22 at 10:30 AM. Call ${phone} to reschedule. Reply HELP for help or STOP to unsubscribe.`,
-    sample2: `${dba}: Hi John, this is Emily confirming your appointment on July 20 at 11:00 AM. Call ${phone} if you need to reschedule. Reply HELP for help or STOP to unsubscribe.`,
-    sample3: `${dba}: Hi John, this is Emily. We're looking forward to seeing you today at 11:00 AM for your appointment. Call ${phone} if you need assistance. Reply HELP for help or STOP to unsubscribe.`,
-    sample4: `${dba}: Hi Brian, we noticed you missed your appointment. Would you like to reschedule? Call ${phone} or visit https://${domain} to book a new time. Reply HELP for help or STOP to unsubscribe.`,
-    embeddedLink: true,
-    embeddedPhone: true,
-  }
 }
 
 // Brands to exclude from campaign creation
@@ -96,6 +70,15 @@ export default function TenDLCPage() {
     const id = Date.now() + Math.floor(Math.random() * 10000)
     setNotifications(prev => [...prev, { id, type, message }])
     setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== id)), 4500)
+  }
+
+  async function copyFieldValue(label: string, value: string) {
+    try {
+      await navigator.clipboard.writeText(value)
+      pushNotification('success', `${label} copied`)
+    } catch (e: any) {
+      pushNotification('error', e.message || 'Failed to copy field')
+    }
   }
 
   const filtered = useMemo(() => {
@@ -385,9 +368,24 @@ export default function TenDLCPage() {
                 const campaign = buildCampaign(previewBrand)
                 const fields = [
                   { label: 'Use Case', value: campaign.usecase },
+                  { label: 'Sub Usecase', value: campaign.subUsecases.join(', ') },
+                  { label: 'Vertical', value: campaign.vertical },
+                  { label: 'Subscriber Help', value: String(campaign.subscriberHelp) },
+                  { label: 'Subscriber Opt-in', value: String(campaign.subscriberOptin) },
+                  { label: 'Subscriber Opt-out', value: String(campaign.subscriberOptout) },
+                  { label: 'Embedded Link', value: String(campaign.embeddedLink) },
+                  { label: 'Embedded Phone', value: String(campaign.embeddedPhone) },
+                  { label: 'Number Pool', value: String(campaign.numberPool) },
+                  { label: 'Age Gated', value: String(campaign.ageGated) },
+                  { label: 'Direct Lending', value: String(campaign.directLending) },
+                  { label: 'Terms and Conditions', value: String(campaign.termsAndConditions) },
+                  { label: 'Terms and Conditions Link', value: campaign.termsAndConditionsLink },
+                  { label: 'Privacy Policy Link', value: campaign.privacyPolicyLink },
                   { label: 'Description', value: campaign.description },
                   { label: 'Message Flow', value: campaign.messageFlow },
                   { label: 'Help Message', value: campaign.helpMessage },
+                  { label: 'Opt-in Message', value: campaign.optinMessage },
+                  { label: 'Opt-out Message', value: campaign.optoutMessage },
                   { label: 'Sample 1', value: campaign.sample1 },
                   { label: 'Sample 2', value: campaign.sample2 },
                   { label: 'Sample 3', value: campaign.sample3 },
@@ -398,7 +396,15 @@ export default function TenDLCPage() {
                 ]
                 return fields.map(f => (
                   <div key={f.label}>
-                    <label className="block text-[11px] font-semibold text-white/40 uppercase tracking-widest mb-1.5">{f.label}</label>
+                    <div className="flex items-center justify-between gap-3 mb-1.5">
+                      <label className="block text-[11px] font-semibold text-white/40 uppercase tracking-widest">{f.label}</label>
+                      <button
+                        onClick={() => copyFieldValue(f.label, f.value)}
+                        className="text-[11px] font-medium text-white/35 hover:text-white/70 transition-colors"
+                      >
+                        Copy
+                      </button>
+                    </div>
                     <div className="bg-[#0A0A0A] border border-white/[0.08] rounded-lg px-4 py-3 text-sm text-white/70 leading-relaxed whitespace-pre-wrap">{f.value}</div>
                   </div>
                 ))
