@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import type { Dealership, Vehicle, GymService, InsuranceProduct } from '@/lib/supabase'
 import { generateSmsTemplates } from '@/lib/sms-templates'
 import { BUSINESS_TYPE_OPTIONS, businessTypeLabel, isGymBusiness, isInsuranceBusiness, isServiceBusiness } from '@/lib/site-niche'
@@ -20,8 +21,22 @@ const BRANDS = ['Toyota','Ford','Chevrolet','Honda','Hyundai','Kia','Nissan','Vo
 const GYM_BRANDS = ['Gym','Fitness Center','Yoga Studio','Pilates Studio','CrossFit Box','Other']
 const INSURANCE_BRANDS = ['State Farm','Allstate','GEICO','Progressive','Farmers','Liberty Mutual','Nationwide','USAA','American Family','Erie Insurance','Independent Agency','Other']
 const CUSTOM_BRANDS = ['Solar Energy','Disability Services','Travel / Tickets','Professional Services','Home Services','Other']
+const VERIFY_POLL_SECONDS = 5
+const VERIFY_MAX_ATTEMPTS = 24
+
+type DeployProgress = {
+  open: boolean
+  phase: 'saving' | 'deploying' | 'verifying' | 'verified' | 'error'
+  title: string
+  message: string
+  attempt?: number
+  nextCheckIn?: number
+  redirectIn?: number
+  liveUrl?: string
+}
 
 export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
+  const router = useRouter()
   const isEdit = !!dealership
   const [saving, setSaving] = useState(false)
   const [tab, setTab] = useState<'details' | 'branding' | 'vehicles' | 'sms' | 'domain'>('details')
@@ -222,6 +237,63 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
   const [domainError, setDomainError] = useState<string | null>(null)
   const [deploying, setDeploying] = useState(false)
   const [deployResult, setDeployResult] = useState<any>(null)
+  const [deployProgress, setDeployProgress] = useState<DeployProgress | null>(null)
+
+  function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms))
+  }
+
+  async function countdown(seconds: number) {
+    for (let remaining = seconds; remaining > 0; remaining--) {
+      setDeployProgress(prev => prev ? { ...prev, nextCheckIn: remaining } : prev)
+      await sleep(1000)
+    }
+  }
+
+  async function redirectTo10Dlc(liveUrl: string) {
+    for (let remaining = 3; remaining > 0; remaining--) {
+      setDeployProgress({
+        open: true,
+        phase: 'verified',
+        title: 'Domain verified',
+        message: 'The landing page is live. Taking you to the 10DLC campaign dashboard.',
+        redirectIn: remaining,
+        liveUrl,
+      })
+      await sleep(1000)
+    }
+    router.push('/dashboard/10dlc')
+  }
+
+  async function pollDeployVerification() {
+    if (!form.subdomain) return null
+
+    for (let attempt = 1; attempt <= VERIFY_MAX_ATTEMPTS; attempt++) {
+      setDeployProgress({
+        open: true,
+        phase: 'verifying',
+        title: 'Verifying domain',
+        message: 'Vercel is checking the Cloudflare DNS records. This usually clears within a minute or two.',
+        attempt,
+        nextCheckIn: VERIFY_POLL_SECONDS,
+        liveUrl: `https://${form.subdomain}.visquanta.com`,
+      })
+
+      const res = await fetch(`/api/deploy?subdomain=${form.subdomain}`)
+      const data = await res.json()
+      setDeployResult(data)
+
+      if (data.deployed && data.domain?.verified) {
+        setDnsStatus('connected')
+        return data
+      }
+
+      setDnsStatus('pending')
+      await countdown(VERIFY_POLL_SECONDS)
+    }
+
+    return null
+  }
 
   // Check deploy status via new deploy API
   async function checkDns() {
@@ -248,6 +320,13 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
     setDeploying(true)
     setDnsStatus('checking')
     setDomainError(null)
+    setDeployProgress({
+      open: true,
+      phase: 'saving',
+      title: 'Saving page data',
+      message: 'Saving the latest fields before generating the static site.',
+      liveUrl: `https://${form.subdomain}.visquanta.com`,
+    })
     try {
       // Must save first
       const method = isEdit ? 'PUT' : 'POST'
@@ -258,9 +337,28 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
         body: JSON.stringify(body),
       })
       const saveData = await saveRes.json()
-      if (saveData.error) { setDomainError(`Save failed: ${saveData.error}`); setDeploying(false); setDnsStatus(null); return }
+      if (saveData.error) {
+        setDomainError(`Save failed: ${saveData.error}`)
+        setDeployProgress({
+          open: true,
+          phase: 'error',
+          title: 'Save failed',
+          message: saveData.error,
+          liveUrl: `https://${form.subdomain}.visquanta.com`,
+        })
+        setDeploying(false)
+        setDnsStatus(null)
+        return
+      }
 
       // Now deploy
+      setDeployProgress({
+        open: true,
+        phase: 'deploying',
+        title: 'Deploying static site',
+        message: 'Generating the site, deploying it to Vercel, and preparing the domain.',
+        liveUrl: `https://${form.subdomain}.visquanta.com`,
+      })
       const res = await fetch('/api/deploy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -270,12 +368,42 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
       if (data.success) {
         setDeployResult(data)
         setDnsStatus(data.domain?.verified ? 'connected' : 'pending')
+        if (data.domain?.verified) {
+          await redirectTo10Dlc(data.liveUrl)
+        } else {
+          const verified = await pollDeployVerification()
+          if (verified?.domain?.verified) {
+            await redirectTo10Dlc(verified.liveUrl)
+          } else {
+            setDeployProgress({
+              open: true,
+              phase: 'error',
+              title: 'Verification still pending',
+              message: 'The site deployed, but Vercel has not confirmed the domain yet. You can leave this open or press Check Deploy Status again in a minute.',
+              liveUrl: data.liveUrl,
+            })
+          }
+        }
       } else {
         setDomainError(data.error || 'Deploy failed')
+        setDeployProgress({
+          open: true,
+          phase: 'error',
+          title: 'Deploy failed',
+          message: data.error || 'Deploy failed',
+          liveUrl: `https://${form.subdomain}.visquanta.com`,
+        })
         setDnsStatus(null)
       }
     } catch (e: any) {
       setDomainError(e.message)
+      setDeployProgress({
+        open: true,
+        phase: 'error',
+        title: 'Deploy failed',
+        message: e.message,
+        liveUrl: `https://${form.subdomain}.visquanta.com`,
+      })
       setDnsStatus(null)
     }
     setDeploying(false)
@@ -766,6 +894,122 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
           </button>
         </div>
       </div>
+
+      {deployProgress?.open && (
+        <div className="fixed inset-0 z-[70] bg-black/75 backdrop-blur-md flex items-center justify-center px-4">
+          <div className="w-full max-w-md bg-[#101010] border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className={`relative w-16 h-16 rounded-full border flex items-center justify-center shrink-0 ${
+                  deployProgress.phase === 'verified'
+                    ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300'
+                    : deployProgress.phase === 'error'
+                      ? 'border-red-400/40 bg-red-400/10 text-red-300'
+                      : 'border-amber-400/40 bg-amber-400/10 text-amber-300'
+                }`}>
+                  {deployProgress.phase === 'verified' ? (
+                    <span className="text-2xl font-semibold">✓</span>
+                  ) : deployProgress.phase === 'error' ? (
+                    <span className="text-2xl font-semibold">!</span>
+                  ) : deployProgress.phase === 'verifying' && deployProgress.nextCheckIn ? (
+                    <span className="text-xl font-semibold tabular-nums">{deployProgress.nextCheckIn}</span>
+                  ) : (
+                    <svg className="animate-spin w-7 h-7" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="60" strokeLinecap="round" className="opacity-25"/>
+                      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                    </svg>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold text-white/35 uppercase tracking-widest mb-2">
+                    {deployProgress.phase === 'verified' ? 'Ready for 10DLC' : deployProgress.phase === 'error' ? 'Needs attention' : 'Deployment progress'}
+                  </p>
+                  <h3 className="text-lg font-semibold text-white mb-2">{deployProgress.title}</h3>
+                  <p className="text-sm text-white/55 leading-relaxed">{deployProgress.message}</p>
+                  {deployProgress.liveUrl && (
+                    <p className="mt-4 text-xs text-white/35 font-mono break-all">{deployProgress.liveUrl}</p>
+                  )}
+                </div>
+              </div>
+
+              {deployProgress.phase === 'verifying' && (
+                <div className="mt-6 bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
+                  <div className="flex items-center justify-between text-xs mb-3">
+                    <span className="text-white/40">Verification check</span>
+                    <span className="text-white/70 font-mono">{deployProgress.attempt || 1}/{VERIFY_MAX_ATTEMPTS}</span>
+                  </div>
+                  <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-amber-400 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, ((deployProgress.attempt || 1) / VERIFY_MAX_ATTEMPTS) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-white/35 mt-3">
+                    Next check in <span className="text-amber-300 font-mono">{deployProgress.nextCheckIn || VERIFY_POLL_SECONDS}s</span>
+                  </p>
+                </div>
+              )}
+
+              {deployProgress.phase === 'verified' && (
+                <div className="mt-6 bg-emerald-400/[0.06] border border-emerald-400/15 rounded-xl p-4">
+                  <p className="text-sm text-emerald-200">
+                    Opening the 10DLC dashboard in <span className="font-mono">{deployProgress.redirectIn || 1}</span> seconds.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-white/[0.06] flex items-center justify-between gap-3">
+              {deployProgress.phase === 'error' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setDeployProgress(null)}
+                    className="text-sm text-white/45 hover:text-white/70 transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={checkDns}
+                    className="text-sm font-semibold text-white bg-white/[0.08] hover:bg-white/[0.12] border border-white/[0.08] px-4 py-2 rounded-lg transition-all"
+                  >
+                    Check Status
+                  </button>
+                </>
+              ) : deployProgress.phase === 'verified' ? (
+                <>
+                  <a
+                    href={deployProgress.liveUrl}
+                    target="_blank"
+                    className="text-sm text-white/45 hover:text-white/70 transition-colors"
+                  >
+                    View Site
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => router.push('/dashboard/10dlc')}
+                    className="text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-all"
+                  >
+                    Go to 10DLC
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="text-xs text-white/30">Keep this window open while verification completes.</span>
+                  <button
+                    type="button"
+                    onClick={() => setDeployProgress(null)}
+                    className="text-sm text-white/45 hover:text-white/70 transition-colors"
+                  >
+                    Hide
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
