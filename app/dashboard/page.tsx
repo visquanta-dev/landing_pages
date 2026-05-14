@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import type { Dealership } from '@/lib/supabase'
 import DealerForm from '@/components/DealerForm'
-import { businessTypeLabel, isGymBusiness, isInsuranceBusiness, isServiceBusiness } from '@/lib/site-niche'
+import { businessTypeLabel, isCcwBusiness, isGymBusiness, isInsuranceBusiness, isServiceBusiness } from '@/lib/site-niche'
 
 export default function DashboardPage() {
   const [dealerships, setDealerships] = useState<Dealership[]>([])
@@ -22,7 +22,7 @@ export default function DashboardPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all')
 
   const filtered = typeFilter === 'all' ? dealerships : dealerships.filter(d => (d.business_type || 'dealership') === typeFilter)
-  const customTypes = Array.from(new Set(dealerships.map(d => d.business_type || 'dealership'))).filter(t => !['dealership', 'gym', 'insurance'].includes(t))
+  const customTypes = Array.from(new Set(dealerships.map(d => d.business_type || 'dealership'))).filter(t => !['dealership', 'gym', 'insurance', 'ccw'].includes(t))
 
   useEffect(() => { fetchDealerships() }, [])
 
@@ -171,6 +171,7 @@ export default function DashboardPage() {
             <option value="dealership" style={{ background: '#111' }}>Dealerships</option>
             <option value="gym" style={{ background: '#111' }}>Gyms</option>
             <option value="insurance" style={{ background: '#111' }}>Insurance</option>
+            <option value="ccw" style={{ background: '#111' }}>CCW / Permit Assistance</option>
             {customTypes.map(type => <option key={type} value={type} style={{ background: '#111' }}>{businessTypeLabel(type)}</option>)}
           </select>
           <button
@@ -315,12 +316,12 @@ export default function DashboardPage() {
                   {d.logo_url ? (
                     <img src={d.logo_url} alt="" className="w-10 h-10 rounded-lg bg-white p-1 object-contain" />
                   ) : (
-                    <div className="w-10 h-10 rounded-lg bg-white/[0.06] flex items-center justify-center text-lg">{isGymBusiness(d.business_type) ? '\uD83C\uDFCB\uFE0F' : isInsuranceBusiness(d.business_type) ? '\uD83D\uDEE1\uFE0F' : isServiceBusiness(d.business_type) ? '\uD83D\uDCC5' : '\uD83C\uDFE2'}</div>
+                    <div className="w-10 h-10 rounded-lg bg-white/[0.06] flex items-center justify-center text-lg">{isGymBusiness(d.business_type) ? '\uD83C\uDFCB\uFE0F' : isInsuranceBusiness(d.business_type) ? '\uD83D\uDEE1\uFE0F' : isCcwBusiness(d.business_type) ? '\uD83D\uDEE1\uFE0F' : isServiceBusiness(d.business_type) ? '\uD83D\uDCC5' : '\uD83C\uDFE2'}</div>
                   )}
                   <div>
                     <h3 className="font-semibold text-sm">{d.dealership_name}</h3>
                     <p className="text-xs text-white/40">{d.brand}</p>
-                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isGymBusiness(d.business_type) ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : isInsuranceBusiness(d.business_type) ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' : isServiceBusiness(d.business_type) ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isGymBusiness(d.business_type) ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : isInsuranceBusiness(d.business_type) || isCcwBusiness(d.business_type) ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' : isServiceBusiness(d.business_type) ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
                       {businessTypeLabel(d.business_type)}
                     </span>
                   </div>
