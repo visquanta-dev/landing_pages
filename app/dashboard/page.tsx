@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import type { Dealership } from '@/lib/supabase'
 import DealerForm from '@/components/DealerForm'
-import { businessTypeLabel, isCcwBusiness, isGymBusiness, isInsuranceBusiness, isServiceBusiness } from '@/lib/site-niche'
+import { businessTypeLabel, isCcwBusiness, isGymBusiness, isInsuranceBusiness, isServiceBusiness, normalizeBusinessType } from '@/lib/site-niche'
 
 export default function DashboardPage() {
   const [dealerships, setDealerships] = useState<Dealership[]>([])
@@ -21,7 +21,9 @@ export default function DashboardPage() {
   const [notifications, setNotifications] = useState<Array<{ id: number; type: 'success' | 'error'; message: string }>>([])
   const [typeFilter, setTypeFilter] = useState<string>('all')
 
-  const filtered = typeFilter === 'all' ? dealerships : dealerships.filter(d => (d.business_type || 'dealership') === typeFilter)
+  const filtered = typeFilter === 'all'
+    ? dealerships
+    : dealerships.filter(d => typeFilter === 'ccw' ? isCcwBusiness(d.business_type) : normalizeBusinessType(d.business_type) === normalizeBusinessType(typeFilter))
   const customTypes = Array.from(new Set(dealerships.map(d => d.business_type || 'dealership'))).filter(t => !['dealership', 'gym', 'insurance'].includes(t) && !isCcwBusiness(t))
 
   useEffect(() => { fetchDealerships() }, [])
