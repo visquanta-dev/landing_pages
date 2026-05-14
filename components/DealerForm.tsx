@@ -20,7 +20,7 @@ const DEFAULT_HOURS: Record<string, string> = {
 const BRANDS = ['Toyota','Ford','Chevrolet','Honda','Hyundai','Kia','Nissan','Volkswagen','Genesis','BMW','Mercedes-Benz','Audi','Lexus','Jeep','Ram','Dodge','Subaru','Mazda','Other']
 const GYM_BRANDS = ['Gym','Fitness Center','Yoga Studio','Pilates Studio','CrossFit Box','Other']
 const INSURANCE_BRANDS = ['State Farm','Allstate','GEICO','Progressive','Farmers','Liberty Mutual','Nationwide','USAA','American Family','Erie Insurance','Independent Agency','Other']
-const CUSTOM_BRANDS = ['Solar Energy','Disability Services','Travel / Tickets','Professional Services','Home Services','Other']
+const CUSTOM_BRANDS = ['CCW / Permit Assistance','Solar Energy','Disability Services','Travel / Tickets','Professional Services','Home Services','Other']
 const VERIFY_POLL_SECONDS = 5
 const VERIFY_MAX_ATTEMPTS = 24
 
@@ -91,7 +91,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
     const legal = `${name} LLC`
     const dba = name
     const email = sub ? `contact@${sub}.visquanta.com` : ''
-    const sms = name ? generateSmsTemplates(legal, dba, phone, email) : { sms_consent_text: '', sms_checkbox_label: '', sms_optin_response: '', sms_optout_response: '', sms_help_response: '' }
+    const sms = name ? generateSmsTemplates(legal, dba, phone, email, s?.business_type) : { sms_consent_text: '', sms_checkbox_label: '', sms_optin_response: '', sms_optout_response: '', sms_help_response: '' }
 
     return {
       business_type: s?.business_type || 'dealership',
@@ -135,6 +135,19 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
     setForm(f => ({ ...f, hours: { ...f.hours, [day]: value } }))
   }
 
+  function handleBusinessTypeChange(businessType: string) {
+    const sms = form.dealership_name
+      ? generateSmsTemplates(
+        form.legal_entity_name,
+        form.dba_name || form.dealership_name,
+        form.phone_sms_help || form.phone_sales,
+        form.email,
+        businessType
+      )
+      : {}
+    setForm(f => ({ ...f, business_type: businessType, ...sms }))
+  }
+
   // ============================================
   // REACTIVE AUTO-POPULATE
   // When key fields change, cascade updates downstream
@@ -146,7 +159,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
     const legal = `${name} LLC`
     const dba = name
     const email = sub ? `contact@${sub}.visquanta.com` : ''
-    const sms = name ? generateSmsTemplates(legal, dba, form.phone_sms_help || form.phone_sales, email) : {}
+    const sms = name ? generateSmsTemplates(legal, dba, form.phone_sms_help || form.phone_sales, email, form.business_type) : {}
     const addr = [form.address_line1, form.address_city, form.address_state, form.address_zip].filter(Boolean).join(', ')
 
     setForm(f => ({
@@ -169,7 +182,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
     const email = clean ? `contact@${clean}.visquanta.com` : ''
     const sms = form.dealership_name ? generateSmsTemplates(
       form.legal_entity_name, form.dba_name || form.dealership_name,
-      form.phone_sms_help || form.phone_sales, email
+      form.phone_sms_help || form.phone_sales, email, form.business_type
     ) : {}
 
     setForm(f => ({ ...f, subdomain: clean, email, ...sms }))
@@ -177,25 +190,25 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
 
   // When legal entity changes → update SMS copy
   function handleLegalChange(legal: string) {
-    const sms = generateSmsTemplates(legal, form.dba_name || form.dealership_name, form.phone_sms_help || form.phone_sales, form.email)
+    const sms = generateSmsTemplates(legal, form.dba_name || form.dealership_name, form.phone_sms_help || form.phone_sales, form.email, form.business_type)
     setForm(f => ({ ...f, legal_entity_name: legal, ...sms }))
   }
 
   // When DBA changes → update SMS copy
   function handleDbaChange(dba: string) {
-    const sms = generateSmsTemplates(form.legal_entity_name, dba, form.phone_sms_help || form.phone_sales, form.email)
+    const sms = generateSmsTemplates(form.legal_entity_name, dba, form.phone_sms_help || form.phone_sales, form.email, form.business_type)
     setForm(f => ({ ...f, dba_name: dba, ...sms }))
   }
 
   // When phone changes → update SMS help response
   function handlePhoneChange(phone: string) {
-    const sms = generateSmsTemplates(form.legal_entity_name, form.dba_name || form.dealership_name, form.phone_sms_help || phone, form.email)
+    const sms = generateSmsTemplates(form.legal_entity_name, form.dba_name || form.dealership_name, form.phone_sms_help || phone, form.email, form.business_type)
     setForm(f => ({ ...f, phone_sales: phone, ...sms }))
   }
 
   // When SMS help phone changes → update SMS help response
   function handleSmsPhoneChange(phone: string) {
-    const sms = generateSmsTemplates(form.legal_entity_name, form.dba_name || form.dealership_name, phone || form.phone_sales, form.email)
+    const sms = generateSmsTemplates(form.legal_entity_name, form.dba_name || form.dealership_name, phone || form.phone_sales, form.email, form.business_type)
     setForm(f => ({ ...f, phone_sms_help: phone, ...sms }))
   }
 
@@ -489,7 +502,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
                   className={inputClass}
                   list="business-type-options"
                   value={form.business_type}
-                  onChange={e => set('business_type', e.target.value)}
+                  onChange={e => handleBusinessTypeChange(e.target.value)}
                   placeholder="dealership, solar, disability, travel..."
                 />
                 <datalist id="business-type-options">

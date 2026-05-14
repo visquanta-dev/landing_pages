@@ -7,6 +7,7 @@ export const BUSINESS_TYPE_OPTIONS = [
   { value: 'dealership', label: 'Dealership' },
   { value: 'gym', label: 'Gym / Fitness Center' },
   { value: 'insurance', label: 'Insurance Agency' },
+  { value: 'ccw', label: 'CCW / Permit Assistance' },
   { value: 'solar', label: 'Solar / Energy' },
   { value: 'disability', label: 'Disability Services' },
   { value: 'travel', label: 'Travel / Tickets' },
@@ -42,6 +43,11 @@ export function isGymBusiness(value?: string | null) {
   return normalizeBusinessType(value) === 'gym'
 }
 
+export function isCcwBusiness(value?: string | null) {
+  const type = normalizeBusinessType(value)
+  return type === 'ccw' || type.includes('concealed-carry') || type.includes('permit-assistance')
+}
+
 export function isServiceBusiness(value?: string | null) {
   const type = normalizeBusinessType(value)
   return type !== 'dealership' && type !== 'insurance'
@@ -49,6 +55,13 @@ export function isServiceBusiness(value?: string | null) {
 
 export function defaultServicesForBusinessType(value?: string | null): ServiceItem[] {
   const type = normalizeBusinessType(value)
+  if (isCcwBusiness(type)) {
+    return [
+      { name: 'Permit Eligibility Pre-Check', description: 'Answer a few questions so the team can understand your application needs and next steps.' },
+      { name: 'Application Assistance', description: 'Get guided support with the concealed carry permit application process and required details.' },
+      { name: 'Firearms Safety Course Access', description: 'Proceed to firearms safety training resources and application support after pre-qualification.' },
+    ]
+  }
   if (type.includes('solar') || type.includes('energy')) {
     return [
       { name: 'Solar Consultation', description: 'Review your property, energy goals, and available solar options.' },
@@ -79,6 +92,7 @@ export function defaultServicesForBusinessType(value?: string | null): ServiceIt
 
 export function inferBusinessTypeFromText(text: string) {
   const haystack = text.toLowerCase()
+  if (/\b(ccw|concealed carry|conceal carry|concealed handgun|firearms safety|gun laws|permit holder|permit holders|new hampshire application|state acceptance)\b/.test(haystack)) return 'ccw'
   if (/\b(solar|panel|panels|photovoltaic|battery storage|renewable energy|energy bill|ev charger)\b/.test(haystack)) return 'solar'
   if (/\b(disability|social security|ssi|ssdi|benefits|claim|claims|appeal)\b/.test(haystack)) return 'disability'
   if (/\b(insurance|policy|coverage|quote|premium|deductible)\b/.test(haystack)) return 'insurance'

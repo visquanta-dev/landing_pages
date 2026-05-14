@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { Dealership } from '@/lib/supabase'
-import { businessTypeLabel, defaultServicesForBusinessType, isServiceBusiness } from '@/lib/site-niche'
+import { businessTypeLabel, defaultServicesForBusinessType, isCcwBusiness, isServiceBusiness } from '@/lib/site-niche'
 
 export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
   const [page, setPage] = useState<'main' | 'privacy' | 'terms'>('main')
@@ -43,7 +43,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
 
   // Handle date validation
   function handleDateChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (isGym) return // gyms open 7 days
+    if (isGym || isInsurance || isCustomService) return
     const date = new Date(e.target.value + 'T00:00:00')
     if (date.getDay() === 0) {
       alert(`Sorry, ${d.dealership_name} is closed on Sundays. Please select another day.`)
@@ -53,6 +53,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
 
   const isGym = d.business_type === 'gym'
   const isInsurance = d.business_type === 'insurance'
+  const isCcw = isCcwBusiness(d.business_type)
   const isCustomService = isServiceBusiness(d.business_type) && !isGym
   const nicheLabel = businessTypeLabel(d.business_type)
   const hours = d.hours || {}
@@ -63,13 +64,15 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
   const smsConsentText =
     d.sms_consent_text ||
     (isGym
-      ? 'By providing your phone number, you consent to receive appointment and service-related text messages from this gym. Message frequency may vary.'
+      ? 'By checking this optional SMS consent box and submitting this form, you agree to receive recurring customer care text messages from this gym, including appointment confirmations, class booking confirmations, reminders, rescheduling updates, missed appointment follow-ups, and account-related service notifications. Message frequency varies based on your requests and appointments. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. We will not share your SMS opt-in or consent status with third parties for purposes unrelated to providing these messaging services.'
       : isInsurance
-      ? 'By providing your phone number, you consent to receive policy and service-related text messages from this insurance agency. Message frequency may vary.'
-      : 'By providing your phone number, you consent to receive appointment, booking, reminder, rescheduling, and account-related text messages from this business. Message frequency may vary.')
+      ? 'By checking this optional SMS consent box and submitting this form, you agree to receive recurring customer care text messages from this insurance agency, including appointment confirmations, consultation confirmations, reminders, rescheduling updates, missed appointment follow-ups, and account-related service notifications. Message frequency varies based on your requests and appointments. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. We will not share your SMS opt-in or consent status with third parties for purposes unrelated to providing these messaging services.'
+      : isCcw
+      ? 'By checking this optional SMS consent box and submitting this form, you agree to receive recurring customer care text messages from this permit assistance provider, including permit application assistance updates, qualification reminders, training-course access notifications, appointment confirmations, and account-related service notifications. Message frequency varies based on your requests and appointments. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. We will not share your SMS opt-in or consent status with third parties for purposes unrelated to providing these messaging services.'
+      : 'By checking this optional SMS consent box and submitting this form, you agree to receive recurring customer care text messages from this business, including appointment confirmations, booking confirmations, reminders, rescheduling updates, missed appointment follow-ups, and account-related service notifications. Message frequency varies based on your requests and appointments. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. We will not share your SMS opt-in or consent status with third parties for purposes unrelated to providing these messaging services.')
   const smsCheckboxLabel =
     d.sms_checkbox_label ||
-    'I agree to receive recurring automated text messages related to my appointment or service request.'
+    `Optional: I agree to receive recurring customer care text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''} at the phone number provided. Message frequency varies. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Checking this box is not required to submit this form.`
 
   const defaultGymServices = [
     { name: 'Group Fitness', icon: '\u{1F3CB}\uFE0F', desc: 'High-energy classes including HIIT, cycling, yoga, and more.' },
@@ -79,9 +82,10 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
   const gymServices = services.length > 0
     ? services.map(s => ({ name: s.name, icon: '\u{1F3CB}\uFE0F', desc: s.description }))
     : defaultGymServices
+  const customServiceIcon = isCcw ? '\u{1F6E1}\uFE0F' : '\u{1F4C5}'
   const customServices = services.length > 0
-    ? services.map(s => ({ name: s.name, icon: '\u{1F4C5}', desc: s.description }))
-    : defaultServicesForBusinessType(d.business_type).map(s => ({ name: s.name, icon: '\u{1F4C5}', desc: s.description }))
+    ? services.map(s => ({ name: s.name, icon: customServiceIcon, desc: s.description }))
+    : defaultServicesForBusinessType(d.business_type).map(s => ({ name: s.name, icon: customServiceIcon, desc: s.description }))
 
   const defaultInsuranceProducts = [
     { name: 'Auto Insurance', icon: '\u{1F697}', desc: 'Comprehensive coverage for your vehicles with competitive rates and bundling options.' },
@@ -95,6 +99,17 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
   const gymTimes = ['5:00 AM','5:30 AM','6:00 AM','6:30 AM','7:00 AM','7:30 AM','8:00 AM','8:30 AM']
   const dealerTimes = ['9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM','4:30 PM','5:00 PM','5:30 PM','6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM']
   const times = isGym ? [...gymTimes, ...dealerTimes] : isInsurance ? dealerTimes : dealerTimes
+  const bookingHeading = isCcw ? 'Start Your Permit Pre-Check' : isInsurance ? 'Get Your Quote' : isCustomService ? 'Request a Booking' : 'Book Your Appointment'
+  const submitLabel = isCcw ? 'Check My Eligibility' : isInsurance ? 'Submit Quote Request' : isCustomService ? 'Submit Request' : 'Submit Appointment Request'
+  const additionalDetailsPlaceholder = isGym
+    ? 'Tell us more - fitness goals, class preferences, experience level, etc.'
+    : isInsurance
+    ? 'Tell us more - current coverage, vehicles/property to insure, budget, etc.'
+    : isCcw
+    ? 'Tell us what you need help with - new permit, renewal, state acceptance questions, application support, or firearms safety course access.'
+    : isCustomService
+    ? 'Tell us more about what you need, your preferred timing, and any useful context...'
+    : 'Tell us more - vehicle of interest, type of service, etc.'
 
   // Generate darker shade
   const cDark = adjustColor(c, -20)
@@ -204,13 +219,15 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                   <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: '#A0A0A0' }}>{isGym ? 'Fitness Center' : isInsurance ? 'Insurance Agency' : isCustomService ? nicheLabel : 'Appointment Booking'}</span>
                 </div>
                 <h1 className="fd anim-up anim-d1" style={{ fontSize: 'clamp(44px, 5.5vw, 72px)', fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.03em', marginBottom: 28 }}>
-                  {isGym ? <>Your Fitness<br /><em style={{ fontStyle: 'italic', color: c }}>Starts Here</em></> : isInsurance ? <>Get the Coverage<br /><em style={{ fontStyle: 'italic', color: c }}>You Deserve</em></> : isCustomService ? <>Let's Get You<br /><em style={{ fontStyle: 'italic', color: c }}>Booked In</em></> : <>We'll Get You<br /><em style={{ fontStyle: 'italic', color: c }}>Booked In</em></>}
+                  {isGym ? <>Your Fitness<br /><em style={{ fontStyle: 'italic', color: c }}>Starts Here</em></> : isInsurance ? <>Get the Coverage<br /><em style={{ fontStyle: 'italic', color: c }}>You Deserve</em></> : isCcw ? <>Start Your Permit<br /><em style={{ fontStyle: 'italic', color: c }}>Pre-Check</em></> : isCustomService ? <>Let's Get You<br /><em style={{ fontStyle: 'italic', color: c }}>Booked In</em></> : <>We'll Get You<br /><em style={{ fontStyle: 'italic', color: c }}>Booked In</em></>}
                 </h1>
                 <p className="anim-up anim-d2" style={{ fontSize: 17, color: '#A0A0A0', lineHeight: 1.75, maxWidth: 500, marginBottom: 44, fontWeight: 300 }}>
                   {isGym
                     ? `Ready for a trial session or membership consultation? Tell us what you need and we'll connect you with ${d.dealership_name} to get you started.`
                     : isInsurance
                     ? `Looking for a quote or policy review? Tell us what you need and we'll connect you with ${d.dealership_name} to find the right coverage for you.`
+                    : isCcw
+                    ? `Ready to start your concealed carry permit pre-qualification? Tell us what you need and we'll connect you with ${d.dealership_name} for application support.`
                     : isCustomService
                     ? `Tell us what you need and we'll connect you with ${d.dealership_name} to confirm the right appointment, booking, or consultation.`
                     : `Need a test drive or service appointment? Tell us what you need and we'll connect you with ${d.dealership_name} to confirm the earliest available slot.`}
@@ -218,7 +235,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                 <div className="anim-up anim-d3 lp-hero-ctas" style={{ display: 'flex', gap: 16 }}>
                   <a href="#booking" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '20px 40px', background: c, color: '#FFFFFF', borderRadius: 8, fontSize: 17, fontWeight: 700, textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' as const, boxShadow: `0 8px 30px ${c}33`, transition: 'all 0.3s ease' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    {isGym || isCustomService ? 'Get Started' : isInsurance ? 'Get a Quote' : 'Book an Appointment'}
+                    {isCcw ? 'Get Pre-Qualified' : isGym || isCustomService ? 'Get Started' : isInsurance ? 'Get a Quote' : 'Book an Appointment'}
                   </a>
                   <a href="#how" style={{ display: 'inline-flex', alignItems: 'center', padding: '18px 36px', background: 'transparent', color: '#E8E8E8', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, fontSize: 15, fontWeight: 500, textDecoration: 'none' }}>Learn More</a>
                 </div>
@@ -244,7 +261,11 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           {/* TRUST */}
           <section style={{ padding: 48, borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#111' }}>
             <div className="lp-trust-inner" style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', justifyContent: 'center', gap: 64 }}>
-              {(isCustomService ? [
+              {(isCcw ? [
+                { icon: '\u{1F6E1}\uFE0F', title: 'Permit Assistance', sub: 'Guided application support' },
+                { icon: '\u{23F1}\uFE0F', title: 'Fast Pre-Check', sub: 'Designed for quick qualification' },
+                { icon: '\u{1F4AC}', title: 'SMS Updates', sub: 'Application reminders & confirmations' },
+              ] : isCustomService ? [
                 { icon: '📅', title: `${nicheLabel} Specialist`, sub: 'Personalized support' },
                 { icon: '⏱️', title: 'Fast Response', sub: 'Confirmation within hours' },
                 { icon: '💬', title: 'SMS Confirmation', sub: 'Instant booking updates' },
@@ -279,7 +300,11 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
               <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 16, lineHeight: 1.1 }}>How It Works</h2>
               <p className="lp-reveal lp-d2" style={{ fontSize: 16, color: '#A0A0A0', maxWidth: 500, marginBottom: 64, fontWeight: 300, lineHeight: 1.7 }}>Three easy steps to secure your spot at {d.dealership_name}.</p>
               <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
-                {(isCustomService ? [
+                {(isCcw ? [
+                  { num: '01', title: 'See If You Qualify', desc: 'Share the basic details needed to understand your concealed carry permit application path.' },
+                  { num: '02', title: 'Use the Application Portal', desc: "Choose a time and we'll coordinate the next step for application assistance and firearms safety course access." },
+                  { num: '03', title: 'Get Guided Support', desc: `We work directly with ${d.dealership_name} to confirm your request and send application-related updates by SMS if you opt in.` },
+                ] : isCustomService ? [
                   { num: '01', title: 'Tell Us What You Need', desc: `Tell us what kind of ${nicheLabel.toLowerCase()} help you need and share any important details.` },
                   { num: '02', title: 'Pick Your Preferred Time', desc: "Select a convenient time and we'll coordinate with the business to match your schedule." },
                   { num: '03', title: 'We Confirm Your Slot', desc: `We work directly with ${d.dealership_name} to confirm your appointment, booking, or consultation via SMS.` },
@@ -311,9 +336,9 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           {isCustomService ? (
             <section id="services" className="lp-section" style={{ padding: '120px 48px', background: '#111' }}>
               <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-                <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>What We Offer</p>
-                <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 16, lineHeight: 1.1 }}>Services & Consultations</h2>
-                <p className="lp-reveal lp-d2" style={{ fontSize: 16, color: '#A0A0A0', maxWidth: 500, marginBottom: 64, fontWeight: 300, lineHeight: 1.7 }}>Explore the {nicheLabel.toLowerCase()} services available at {d.dealership_name}.</p>
+                <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>{isCcw ? 'Application Support' : 'What We Offer'}</p>
+                <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 16, lineHeight: 1.1 }}>{isCcw ? 'Permit Assistance' : 'Services & Consultations'}</h2>
+                <p className="lp-reveal lp-d2" style={{ fontSize: 16, color: '#A0A0A0', maxWidth: 500, marginBottom: 64, fontWeight: 300, lineHeight: 1.7 }}>{isCcw ? `Explore the permit pre-qualification, application assistance, and firearms safety support available through ${d.dealership_name}.` : `Explore the ${nicheLabel.toLowerCase()} services available at ${d.dealership_name}.`}</p>
                 <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(customServices.length, 3)}, 1fr)`, gap: 24 }}>
                   {customServices.map((s, i) => (
                     <div key={i} className={`lp-reveal ${i > 0 ? `lp-d${i}` : ''}`}
@@ -393,7 +418,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           <section id="booking" className="lp-section" style={{ padding: '120px 48px', position: 'relative' }}>
             <div style={{ maxWidth: 680, margin: '0 auto' }}>
               <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>Get Started</p>
-              <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(36px, 5vw, 56px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 16, lineHeight: 1.1, color: '#FFFFFF' }}>Book Your Appointment</h2>
+              <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(36px, 5vw, 56px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 16, lineHeight: 1.1, color: '#FFFFFF' }}>{bookingHeading}</h2>
               <p className="lp-reveal lp-d2" style={{ fontSize: 16, color: '#A0A0A0', maxWidth: 500, marginBottom: 64, fontWeight: 300, lineHeight: 1.7 }}>Fill in your details and we'll handle the rest.</p>
               
               <form id="lp-form" className="lp-form-card lp-reveal lp-d3" onSubmit={handleSubmit}
@@ -472,20 +497,28 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                 <div style={{ marginTop: 28, padding: 24, border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, background: 'rgba(255,255,255,0.015)' }}>
                   <p style={{ fontSize: 15, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.12em', color: '#E8E8E8', marginBottom: 14 }}>SMS Communications Consent</p>
                   <p style={{ fontSize: 15, lineHeight: 1.75, color: '#999', marginBottom: 14 }}>{smsConsentText}</p>
+                  <p style={{ fontSize: 13, marginBottom: 18 }}>
+                    <a href="#" onClick={(e) => { e.preventDefault(); showPage('privacy') }} style={{ color: c, textDecoration: 'none', fontWeight: 500 }}>Privacy Policy</a>
+                    <span style={{ color: '#666' }}> | </span>
+                    <a href="#" onClick={(e) => { e.preventDefault(); showPage('terms') }} style={{ color: c, textDecoration: 'none', fontWeight: 500 }}>Terms & Conditions</a>
+                  </p>
                   <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                     <input
+                      id="sms-consent-checkbox"
+                      name="sms_consent"
                       type="checkbox"
                       style={{ marginTop: 3, width: 18, height: 18, accentColor: c, flexShrink: 0, cursor: 'pointer' }}
                     />
-                    <label style={{ fontSize: 15, lineHeight: 1.65, color: '#B0B0B0', cursor: 'pointer' }}>
-                      I agree to receive recurring text messages from {d.dealership_name} at the number provided. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe.
+                    <label htmlFor="sms-consent-checkbox" style={{ fontSize: 15, lineHeight: 1.65, color: '#B0B0B0', cursor: 'pointer' }}>
+                      {smsCheckboxLabel}
                     </label>
                   </div>
+                  <p style={{ fontSize: 12, lineHeight: 1.6, color: '#666', marginTop: 12 }}>Checking this box is optional and is not required to submit this form. We will only send SMS messages to the phone number provided if you opt in.</p>
                 </div>
 
                 <button type="submit" disabled={submitting}
                   style={{ marginTop: 32, width: '100%', padding: 22, background: c, color: '#FFFFFF', border: 'none', borderRadius: 10, fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.05em', textTransform: 'uppercase' as const, opacity: submitting ? 0.5 : 1, transition: 'all 0.3s ease', boxShadow: `0 8px 30px ${c}33` }}>
-                  {submitting ? 'Submitting...' : 'Submit Appointment Request'}
+                  {submitting ? 'Submitting...' : submitLabel}
                 </button>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 20 }}>
                   <a href="#" onClick={(e) => { e.preventDefault(); showPage('privacy') }} style={{ fontSize: 12, color: '#333', textDecoration: 'none' }}>Privacy Policy</a>
@@ -553,16 +586,16 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
             <h2 style={{ fontSize: 18, fontWeight: 600, margin: '36px 0 12px', color: '#E8E8E8' }}>2. How We Use Your Information</h2>
             <p style={{ marginBottom: 16 }}>We may use the information we collect to provide and maintain our services, improve user experience, process transactions, communicate with you, and comply with legal obligations.</p>
             <h2 style={{ fontSize: 18, fontWeight: 600, margin: '36px 0 12px', color: '#E8E8E8' }}>3. Information Sharing and Disclosure</h2>
-            <p style={{ marginBottom: 16 }}>No mobile information will be shared with third parties/affiliates for marketing/promotional purposes. Information sharing to subcontractors in support services is permitted. All other use case categories exclude text messaging originator opt-in data and consent.</p>
+            <p style={{ marginBottom: 16 }}>We do not sell, rent, or share mobile phone numbers, SMS opt-in data, or SMS consent status with third parties or affiliates for their marketing or promotional purposes. We will not share your SMS opt-in or consent status with any third party for purposes unrelated to providing the messaging services you requested. We may share personal data, including SMS opt-in or consent status, with service providers, phone companies, messaging platforms, and vendors only as needed to deliver and support those text messages.</p>
             <h2 style={{ fontSize: 18, fontWeight: 600, margin: '36px 0 12px', color: '#E8E8E8' }}>4. Data Security</h2>
             <p style={{ marginBottom: 16 }}>We are committed to protecting your personal information using industry-standard security measures.</p>
             <h2 style={{ fontSize: 18, fontWeight: 600, margin: '36px 0 12px', color: '#E8E8E8' }}>5. SMS / Text Messaging Program</h2>
-            <p style={{ marginBottom: 16 }}>When you provide your mobile phone number through a form on this website and check the SMS consent box, you agree to receive recurring text messages from {d.legal_entity_name}{d.dba_name ? ` (DBA ${d.dba_name})` : ''}, including appointment confirmations, reminders, and account-related notifications. Consent is not a condition of purchase.</p>
+            <p style={{ marginBottom: 16 }}>When you provide your mobile phone number through a form on this website and check the SMS consent box, you agree to receive recurring text messages from {d.legal_entity_name}{d.dba_name ? ` (DBA ${d.dba_name})` : ''}, including {isCcw ? 'permit application assistance updates, qualification reminders, training-course access notifications' : 'appointment confirmations, reminders'}, and account-related notifications. Consent is not a condition of purchase.</p>
             <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Message frequency:</strong> Message frequency may vary based on your interactions with us.</p>
             <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Costs:</strong> Message and data rates may apply. Check with your mobile carrier for details.</p>
             <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Help:</strong> Reply HELP for help{d.phone_sms_help ? ` or call ${d.phone_sms_help}` : ''}{d.email ? ` or email ${d.email}` : ''}.</p>
             <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Opt-out:</strong> Reply STOP to unsubscribe at any time. After unsubscribing, you will receive one confirmation message and no further texts.</p>
-            <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Privacy of mobile information:</strong> No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. Mobile opt-in data and consent will not be shared with any third party.</p>
+            <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Privacy of mobile information:</strong> Mobile phone numbers, SMS opt-in data, and SMS consent status will not be sold, rented, or shared with third parties or affiliates for their marketing or promotional purposes. We may share this information with vendors that help provide messaging services only as needed to deliver and support the messages you requested.</p>
             <h2 style={{ fontSize: 18, fontWeight: 600, margin: '36px 0 12px', color: '#E8E8E8' }}>6. Contact Us</h2>
             <p>If you have questions about this Privacy Policy, please contact us at: {d.phone_sales && <a href={`tel:${d.phone_sales.replace(/\D/g, '')}`} style={{ color: c }}>{d.phone_sales}</a>}{d.email && <span> or <a href={`mailto:${d.email}`} style={{ color: c }}>{d.email}</a></span>}. Website: {d.subdomain}.visquanta.com</p>
           </div>
@@ -576,7 +609,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           <h1 className="fd" style={{ fontSize: 40, fontWeight: 500, marginBottom: 8, letterSpacing: '-0.02em' }}>Terms and Conditions</h1>
           <p style={{ fontSize: 13, color: '#333', marginBottom: 48 }}>Effective Date: {d.terms_effective_date || 'Sep 15, 2025'}</p>
           <ol style={{ listStyle: 'decimal', paddingLeft: 20, fontSize: 14, color: '#666', lineHeight: 1.85, fontWeight: 300 }}>
-            <li style={{ marginBottom: 12 }}>This SMS program sends recurring automated appointment confirmations, booking confirmations, reminders, rescheduling notifications, and other account-related updates from {d.legal_entity_name} {d.dba_name ? `(DBA ${d.dba_name})` : ''} (website: {d.subdomain}.visquanta.com) to customers who have opted in. No promotional or marketing messages are sent.</li>
+            <li style={{ marginBottom: 12 }}>This SMS program sends recurring automated {isCcw ? 'permit application assistance updates, qualification reminders, training-course access notifications' : 'appointment confirmations, booking confirmations, reminders, rescheduling notifications'}, and other account-related updates from {d.legal_entity_name} {d.dba_name ? `(DBA ${d.dba_name})` : ''} (website: {d.subdomain}.visquanta.com) to customers who have opted in. No promotional or marketing messages are sent.</li>
             <li style={{ marginBottom: 12 }}>You can cancel at any time by replying STOP.</li>
             <li style={{ marginBottom: 12 }}>If you experience issues, reply HELP for assistance{d.phone_sms_help ? ` or call ${d.phone_sms_help}` : ''}{d.email ? ` or email ${d.email}` : ''}.</li>
             <li style={{ marginBottom: 12 }}>Carriers are not liable for delayed or undelivered messages.</li>
@@ -616,7 +649,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
               <div style={{ width: 40, height: 40, borderRadius: 10, background: `${c}1a`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c, flexShrink: 0 }}>💬</div>
               <div>
                 <strong style={{ display: 'block', fontSize: 13, marginBottom: 3 }}>Check your phone</strong>
-                <span style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>You'll receive an SMS confirmation shortly with your appointment details.</span>
+                <span style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>If you opted in to SMS, you'll receive a text confirmation shortly with your appointment details.</span>
               </div>
             </div>
             <button onClick={closeModal} style={{ background: c, color: '#fff', border: 'none', padding: '14px 56px', borderRadius: 8, fontFamily: "'Outfit', sans-serif", fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Done</button>

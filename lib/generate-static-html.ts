@@ -73,6 +73,8 @@ function navHTML(d: Dealership, c: string): string {
   const isGym = d.business_type === 'gym'
   const isInsurance = d.business_type === 'insurance'
   const isTickets = ['ticketsthatcheap'].includes(d.subdomain)
+  const businessType = normalizeBusinessType(d.business_type)
+  const isCcw = businessType === 'ccw' || businessType.includes('concealed-carry') || businessType.includes('permit-assistance')
   const isCustomService = isServiceBusiness(d.business_type) && !isGym && !isTickets
   const linkStyle = `color:#A0A0A0;text-decoration:none;font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase`
   const thirdLink = isTickets
@@ -84,7 +86,7 @@ function navHTML(d: Dealership, c: string): string {
     : isInsurance
     ? `<a href="/#products" style="${linkStyle}">Coverage</a>`
     : `<a href="/#vehicles" style="${linkStyle}">Vehicles</a>`
-  const ctaLabel = isTickets ? 'Find Tickets' : isInsurance ? 'Get Quote' : isCustomService ? 'Get Started' : 'Book Now'
+  const ctaLabel = isCcw ? 'Get Pre-Qualified' : isTickets ? 'Find Tickets' : isInsurance ? 'Get Quote' : isCustomService ? 'Get Started' : 'Book Now'
 
   return `<nav id="lp-nav">
     <a href="/" style="display:flex;align-items:center;gap:14px;text-decoration:none">
@@ -161,6 +163,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
   const isTrajector = d.subdomain === 'trajectordisability'
   const isTickets = ['ticketsthatcheap'].includes(d.subdomain)
   const businessType = normalizeBusinessType(d.business_type)
+  const isCcw = businessType === 'ccw' || businessType.includes('concealed-carry') || businessType.includes('permit-assistance')
   const nicheLabel = businessTypeLabel(d.business_type)
   const isCustomService = isServiceBusiness(d.business_type) && !isGym && !isTickets
 
@@ -171,8 +174,13 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
   const smsConsentText =
     d.sms_consent_text ||
     (isTickets
-      ? `By providing your phone number, you consent to receive recurring text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''}, including booking confirmations, trip itinerary updates, travel reminders, and account-related notifications. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.`
-      : `By providing your phone number, you consent to receive recurring text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''}, including appointment confirmations, booking confirmations, reminders, rescheduling notifications, and account-related updates. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.`)
+      ? `By checking the optional SMS consent box and providing your phone number, you consent to receive recurring text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''}, including booking confirmations, trip itinerary updates, travel reminders, and account-related notifications. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.`
+      : isCcw
+      ? `By checking the optional SMS consent box and providing your phone number, you consent to receive recurring text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''}, including permit application assistance updates, qualification reminders, training-course access notifications, appointment confirmations, and account-related messages. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.`
+      : `By checking the optional SMS consent box and providing your phone number, you consent to receive recurring text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''}, including appointment confirmations, booking confirmations, reminders, rescheduling notifications, and account-related updates. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.`)
+  const smsCheckboxLabel =
+    d.sms_checkbox_label ||
+    `Optional: I agree to receive recurring text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''} at the phone number provided. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Checking this box is not required to submit this form.`
 
   // ── VEHICLES / SERVICES SECTION ──
   let middleSectionHTML = ''
@@ -202,16 +210,17 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     </section>
   `
   } else if (isCustomService) {
+    const customIcon = isCcw ? '\u{1F6E1}\uFE0F' : businessType.includes('solar') || businessType.includes('energy') ? '\u2600\uFE0F' : '\u{1F4C5}'
     const customServices = (d.services && d.services.length > 0)
-      ? d.services.map(s => ({ name: s.name, icon: businessType.includes('solar') || businessType.includes('energy') ? '\u2600\uFE0F' : '\u{1F4C5}', desc: s.description }))
-      : defaultServicesForBusinessType(d.business_type).map(s => ({ name: s.name, icon: businessType.includes('solar') || businessType.includes('energy') ? '\u2600\uFE0F' : '\u{1F4C5}', desc: s.description }))
+      ? d.services.map(s => ({ name: s.name, icon: customIcon, desc: s.description }))
+      : defaultServicesForBusinessType(d.business_type).map(s => ({ name: s.name, icon: customIcon, desc: s.description }))
 
     middleSectionHTML = `
     <section id="services" class="lp-section" style="padding:120px 48px;background:#111">
       <div style="max-width:1280px;margin:0 auto">
-        <p class="lp-reveal" style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:${esc(c)};margin-bottom:16px">What We Offer</p>
-        <h2 class="fd lp-reveal lp-d1" style="font-size:clamp(32px,4vw,48px);font-weight:500;letter-spacing:-0.02em;margin-bottom:16px;line-height:1.1">Services &amp; Consultations</h2>
-        <p class="lp-reveal lp-d2" style="font-size:16px;color:#A0A0A0;max-width:500px;margin-bottom:64px;font-weight:300;line-height:1.7">Explore the ${esc(nicheLabel.toLowerCase())} services available at ${esc(d.dealership_name)}.</p>
+        <p class="lp-reveal" style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:${esc(c)};margin-bottom:16px">${isCcw ? 'Application Support' : 'What We Offer'}</p>
+        <h2 class="fd lp-reveal lp-d1" style="font-size:clamp(32px,4vw,48px);font-weight:500;letter-spacing:-0.02em;margin-bottom:16px;line-height:1.1">${isCcw ? 'Permit Assistance' : 'Services &amp; Consultations'}</h2>
+        <p class="lp-reveal lp-d2" style="font-size:16px;color:#A0A0A0;max-width:500px;margin-bottom:64px;font-weight:300;line-height:1.7">${isCcw ? `Explore the permit pre-qualification, application assistance, and firearms safety support available through ${esc(d.dealership_name)}.` : `Explore the ${esc(nicheLabel.toLowerCase())} services available at ${esc(d.dealership_name)}.`}</p>
         <div class="lp-3col" style="display:grid;grid-template-columns:repeat(${Math.min(customServices.length, 3)},1fr);gap:24px">
           ${customServices.map((s, i) => `
             <div class="lp-reveal${i > 0 ? ` lp-d${i}` : ''}" style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:40px 32px;text-align:center">
@@ -318,11 +327,12 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
         <a href="/terms-and-conditions" style="color:${esc(c)};text-decoration:none;font-weight:500">Terms &amp; Conditions</a>
       </p>
       <div style="display:flex;gap:14px;align-items:flex-start;padding-top:18px;border-top:1px solid rgba(255,255,255,0.06)">
-        <input id="sms-consent-checkbox" type="checkbox" style="margin-top:3px;width:18px;height:18px;accent-color:${esc(c)};flex-shrink:0;cursor:pointer" />
-        <label style="font-size:15px;line-height:1.65;color:#B0B0B0;cursor:pointer">
-          I agree to receive recurring text messages from ${esc(d.dealership_name)} at the number provided. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe.
+        <input id="sms-consent-checkbox" name="sms_consent" type="checkbox" value="yes" style="margin-top:3px;width:18px;height:18px;accent-color:${esc(c)};flex-shrink:0;cursor:pointer" />
+        <label for="sms-consent-checkbox" style="font-size:15px;line-height:1.65;color:#B0B0B0;cursor:pointer">
+          ${esc(smsCheckboxLabel)}
         </label>
       </div>
+      <p style="font-size:12px;line-height:1.6;color:#666;margin-top:12px">Checking this box is optional and is not required to submit this form. We will only send SMS messages to the phone number provided if you opt in.</p>
     </div>
   `
 
@@ -333,19 +343,23 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? `Book a class, schedule a tour, or inquire about membership at ${esc(d.dealership_name)}. We'll help you get started.`
     : isInsurance
     ? `Get an insurance quote or schedule a policy review with ${esc(d.dealership_name)}. We'll help you find the right coverage.`
+    : isCcw
+    ? `Start concealed carry permit pre-qualification and application assistance with ${esc(d.dealership_name)}.`
     : isCustomService
     ? `Book a consultation, appointment, or service request with ${esc(d.dealership_name)}. We'll confirm the next step for you.`
     : isTrajector
     ? `Book an appointment with ${esc(d.dealership_name)}. We'll confirm the earliest available slot for you.`
     : `Book a test drive or service appointment at ${esc(d.dealership_name)}. We'll confirm the earliest available slot for you.`
 
-  const heroSubtitle = isTickets ? 'Travel Deals' : isGym ? 'Fitness Center' : isInsurance ? 'Insurance Agency' : isCustomService ? nicheLabel : 'Appointment Booking'
+  const heroSubtitle = isTickets ? 'Travel Deals' : isGym ? 'Fitness Center' : isInsurance ? 'Insurance Agency' : isCcw ? 'CCW Permit Assistance' : isCustomService ? nicheLabel : 'Appointment Booking'
   const heroHeading = isTickets
     ? `Cheap Tickets,<br><em style="font-style:italic;color:${esc(c)}">Anywhere</em>`
     : isGym
     ? `Your Fitness<br><em style="font-style:italic;color:${esc(c)}">Starts Here</em>`
     : isInsurance
     ? `Get the Coverage<br><em style="font-style:italic;color:${esc(c)}">You Deserve</em>`
+    : isCcw
+    ? `Start Your Permit<br><em style="font-style:italic;color:${esc(c)}">Pre-Check</em>`
     : isCustomService
     ? `Let's Get You<br><em style="font-style:italic;color:${esc(c)}">Booked In</em>`
     : `We'll Get You<br><em style="font-style:italic;color:${esc(c)}">Booked In</em>`
@@ -355,18 +369,22 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? `Ready to transform your fitness? Tell us what you're interested in and we'll help you get started at ${esc(d.dealership_name)}.`
     : isInsurance
     ? `Looking for a quote or policy review? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to find the right coverage for you.`
+    : isCcw
+    ? `Ready to start your concealed carry permit pre-qualification? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} for application support.`
     : isCustomService
     ? `Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to confirm the right appointment, booking, or consultation.`
     : isTrajector
     ? `Need an appointment? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to confirm the earliest available slot.`
     : `Need a test drive or service appointment? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to confirm the earliest available slot.`
-  const heroCta = isTickets ? 'Find My Trip' : isGym ? 'Get Started' : isInsurance ? 'Get a Quote' : isCustomService ? 'Get Started' : 'Book an Appointment'
+  const heroCta = isCcw ? 'Get Pre-Qualified' : isTickets ? 'Find My Trip' : isGym ? 'Get Started' : isInsurance ? 'Get a Quote' : isCustomService ? 'Get Started' : 'Book an Appointment'
   const heroCardOverlay = isTickets
     ? `Flights &bull; Holidays &bull; City Breaks &bull; Hotels`
     : isGym
     ? `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; Award-Winning Gym`
     : isInsurance
     ? `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; Insurance &amp; Financial Services`
+    : isCcw
+    ? `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; Permit Assistance`
     : isCustomService
     ? `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; ${esc(nicheLabel)}`
     : isTrajector
@@ -380,6 +398,8 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Certified Trainers</div><div style="font-size:12px;color:#666">Expert fitness professionals</div></div>`
     : isInsurance
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Licensed Agency</div><div style="font-size:12px;color:#666">${esc(d.brand)} authorized agent</div></div>`
+    : isCcw
+    ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Permit Assistance</div><div style="font-size:12px;color:#666">Guided application support</div></div>`
     : isCustomService
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">${esc(nicheLabel)} Specialist</div><div style="font-size:12px;color:#666">Personalized support</div></div>`
     : `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Verified Dealership</div><div style="font-size:12px;color:#666">Authorized ${esc(d.brand)} Dealer</div></div>`
@@ -388,6 +408,8 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Real Travel Agents</div><div style="font-size:12px;color:#666">Human help, not just an app</div></div>`
     : isInsurance
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Fast Quotes</div><div style="font-size:12px;color:#666">Compare rates in minutes</div></div>`
+    : isCcw
+    ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Fast Pre-Check</div><div style="font-size:12px;color:#666">Designed for quick qualification</div></div>`
     : isCustomService
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Fast Response</div><div style="font-size:12px;color:#666">Confirmation within hours</div></div>`
     : `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Same-Day Response</div><div style="font-size:12px;color:#666">Confirmation within hours</div></div>`
@@ -396,41 +418,49 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">24/7 Trip Support</div><div style="font-size:12px;color:#666">We're with you the whole way</div></div>`
     : isInsurance
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">SMS Updates</div><div style="font-size:12px;color:#666">Policy reminders &amp; confirmations</div></div>`
+    : isCcw
+    ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">SMS Updates</div><div style="font-size:12px;color:#666">Application reminders &amp; confirmations</div></div>`
     : `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">SMS Confirmation</div><div style="font-size:12px;color:#666">Instant booking updates</div></div>`
 
   // How it works
-  const step1Title = isTickets ? 'Tell Us Where You Want To Go' : isGym ? 'Choose Your Activity' : isInsurance ? 'Choose Your Coverage' : 'Tell Us What You Need'
+  const step1Title = isTickets ? 'Tell Us Where You Want To Go' : isGym ? 'Choose Your Activity' : isInsurance ? 'Choose Your Coverage' : isCcw ? 'See If You Qualify' : 'Tell Us What You Need'
   const step1Text = isTickets
     ? 'Send us your destination, dates, and how many travelers \u2014 flights, packages, city breaks, or anywhere else.'
     : isGym
     ? 'Choose your interest \u2014 group classes, personal training, Pilates, a gym tour, or membership info.'
     : isInsurance
     ? 'Tell us what type of insurance you need \u2014 auto, home, life, or a bundle of policies.'
+    : isCcw
+    ? 'Share the basic details needed to understand your concealed carry permit application path.'
     : isCustomService
     ? `Tell us what kind of ${esc(nicheLabel.toLowerCase())} help you need and share any important details.`
     : "Select whether you'd like a test drive, service appointment, or have a general inquiry about a vehicle."
-  const step2Title = isTickets ? 'We Find the Cheapest Tickets' : isInsurance ? 'Pick a Time to Talk' : 'Pick Your Preferred Time'
+  const step2Title = isTickets ? 'We Find the Cheapest Tickets' : isCcw ? 'Use the Application Portal' : isInsurance ? 'Pick a Time to Talk' : 'Pick Your Preferred Time'
   const step2Text = isTickets
     ? "Our travel agents hunt the best prices across every airline and operator — then send you the top picks."
     : isGym
     ? "Let us know when works best and we'll coordinate with the gym to match your schedule."
     : isInsurance
     ? "Select a convenient time and we'll coordinate with the agency to schedule your consultation."
+    : isCcw
+    ? "Choose a time and we'll coordinate the next step for application assistance and firearms safety course access."
     : isCustomService
     ? "Select a convenient time and we'll coordinate with the business to match your schedule."
     : "Let us know when works best and we'll coordinate with the dealership to match your schedule."
-  const step3Title = isTickets ? 'Book in One Click' : isInsurance ? 'Get Your Quote' : 'We Confirm Your Slot'
+  const step3Title = isTickets ? 'Book in One Click' : isCcw ? 'Get Guided Support' : isInsurance ? 'Get Your Quote' : 'We Confirm Your Slot'
   const step3Text = isTickets
     ? `Pick the deal you like and ${esc(d.dealership_name)} books it for you — confirmation lands in your inbox same day.`
     : isInsurance
     ? `We work directly with ${esc(d.dealership_name)} to get you the best rates and confirm your appointment via SMS.`
+    : isCcw
+    ? `We work directly with ${esc(d.dealership_name)} to confirm your request and send application-related updates by SMS if you opt in.`
     : isCustomService
     ? `We work directly with ${esc(d.dealership_name)} to confirm your appointment, booking, or consultation via SMS.`
     : `We work directly with ${esc(d.dealership_name)} to get you the earliest available appointment and confirm via SMS.`
 
   // Booking form heading
-  const bookingHeading = isTickets ? 'Get a Travel Quote' : isInsurance ? 'Get Your Quote' : isCustomService ? 'Request a Booking' : 'Book Your Appointment'
-  const submitLabel = isTickets ? 'Find Me a Deal' : isInsurance ? 'Submit Quote Request' : isCustomService ? 'Submit Request' : 'Submit Appointment Request'
+  const bookingHeading = isCcw ? 'Start Your Permit Pre-Check' : isTickets ? 'Get a Travel Quote' : isInsurance ? 'Get Your Quote' : isCustomService ? 'Request a Booking' : 'Book Your Appointment'
+  const submitLabel = isCcw ? 'Check My Eligibility' : isTickets ? 'Find Me a Deal' : isInsurance ? 'Submit Quote Request' : isCustomService ? 'Submit Request' : 'Submit Appointment Request'
 
   // Form service options
   const serviceOptions = isTickets
@@ -442,6 +472,14 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
             <option>Cruise</option>
             <option>Custom Trip / Multi-Stop</option>
             <option>Group Booking (10+)</option>
+            <option>General Question</option>`
+    : isCcw
+    ? `<option value="" disabled selected>Select an option</option>
+            <option>New CCW Permit Application</option>
+            <option>Permit Renewal Assistance</option>
+            <option>State Acceptance / Reciprocity Question</option>
+            <option>Firearms Safety Course Access</option>
+            <option>Application Status Question</option>
             <option>General Question</option>`
     : isCustomService
     ? `<option value="" disabled selected>Select an option</option>
@@ -476,12 +514,14 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? 'Tell us more \u2014 class interest, fitness goals, preferred schedule, etc.'
     : isInsurance
     ? 'Tell us more \u2014 current coverage, vehicles/property to insure, budget, etc.'
+    : isCcw
+    ? 'Tell us what you need help with - new permit, renewal, state acceptance questions, application support, or firearms safety course access.'
     : isCustomService
     ? 'Tell us more about what you need, your preferred timing, and any useful context\u2026'
     : 'Tell us more \u2014 vehicle of interest, type of service, etc.'
 
-  const infoSectionLabel = isTickets ? 'Travel Office' : isGym ? 'Gym Details' : isInsurance ? 'Agency Details' : isCustomService ? 'Business Details' : isTrajector ? 'Agent Details' : 'Dealership Details'
-  const phoneLabel = isTickets ? 'Bookings' : isGym ? 'Phone' : isInsurance ? 'Office' : isCustomService ? 'Phone' : 'Sales'
+  const infoSectionLabel = isTickets ? 'Travel Office' : isGym ? 'Gym Details' : isInsurance ? 'Agency Details' : isCcw ? 'Support Details' : isCustomService ? 'Business Details' : isTrajector ? 'Agent Details' : 'Dealership Details'
+  const phoneLabel = isTickets ? 'Bookings' : isGym ? 'Phone' : isInsurance ? 'Office' : isCcw ? 'Support' : isCustomService ? 'Phone' : 'Sales'
 
   // Date validation script (no Sunday restriction for gyms, insurance agencies, or tickets)
   const dateChangeScript = isGym || isInsurance || isTickets || isCustomService
@@ -715,7 +755,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
         <div style="width:40px;height:40px;border-radius:10px;background:${c}1a;display:flex;align-items:center;justify-content:center;color:${esc(c)};flex-shrink:0">\u{1F4AC}</div>
         <div>
           <strong style="display:block;font-size:13px;margin-bottom:3px">Check your phone</strong>
-          <span style="font-size:12px;color:#666;line-height:1.5">You'll receive an SMS confirmation shortly with your appointment details.</span>
+          <span style="font-size:12px;color:#666;line-height:1.5">If you opted in to SMS, you'll receive a text confirmation shortly with your appointment details.</span>
         </div>
       </div>
       <button onclick="closeModal()" style="background:${esc(c)};color:#fff;border:none;padding:14px 56px;border-radius:8px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Done</button>
@@ -779,16 +819,16 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       <h2 style="font-size:18px;font-weight:600;margin:36px 0 12px;color:#E8E8E8">2. How We Use Your Information</h2>
       <p style="margin-bottom:16px">We may use the information we collect to provide and maintain our services, improve user experience, process transactions, communicate with you, and comply with legal obligations.</p>
       <h2 style="font-size:18px;font-weight:600;margin:36px 0 12px;color:#E8E8E8">3. Information Sharing and Disclosure</h2>
-      <p style="margin-bottom:16px">No mobile information will be shared with third parties/affiliates for marketing/promotional purposes. Information sharing to subcontractors in support services is permitted. All other use case categories exclude text messaging originator opt-in data and consent.</p>
+      <p style="margin-bottom:16px">We do not sell, rent, or share mobile phone numbers, SMS opt-in data, or SMS consent status with third parties or affiliates for their marketing or promotional purposes. Service providers may process information only as needed to provide the requested services and are not permitted to use SMS opt-in data for their own marketing.</p>
       <h2 style="font-size:18px;font-weight:600;margin:36px 0 12px;color:#E8E8E8">4. Data Security</h2>
       <p style="margin-bottom:16px">We are committed to protecting your personal information using industry-standard security measures.</p>
       <h2 style="font-size:18px;font-weight:600;margin:36px 0 12px;color:#E8E8E8">5. SMS / Text Messaging Program</h2>
-      <p style="margin-bottom:16px">When you provide your mobile phone number through a form on this website and check the SMS consent box, you agree to receive recurring text messages from ${esc(d.legal_entity_name)}${d.dba_name ? ` (DBA ${esc(d.dba_name)})` : ''}, including ${isTickets ? 'booking confirmations, trip itinerary updates, travel reminders' : 'appointment confirmations, reminders'}, and account-related notifications. Consent is not a condition of purchase.</p>
+      <p style="margin-bottom:16px">When you provide your mobile phone number through a form on this website and check the SMS consent box, you agree to receive recurring text messages from ${esc(d.legal_entity_name)}${d.dba_name ? ` (DBA ${esc(d.dba_name)})` : ''}, including ${isTickets ? 'booking confirmations, trip itinerary updates, travel reminders' : isCcw ? 'permit application assistance updates, qualification reminders, training-course access notifications' : 'appointment confirmations, reminders'}, and account-related notifications. Consent is not a condition of purchase.</p>
       <p style="margin-bottom:16px"><strong style="color:#E8E8E8;font-weight:500">Message frequency:</strong> Message frequency may vary based on your interactions with us.</p>
       <p style="margin-bottom:16px"><strong style="color:#E8E8E8;font-weight:500">Costs:</strong> Message and data rates may apply. Check with your mobile carrier for details.</p>
       <p style="margin-bottom:16px"><strong style="color:#E8E8E8;font-weight:500">Help:</strong> Reply HELP for help${d.phone_sms_help ? ` or call ${esc(d.phone_sms_help)}` : ''}${d.email ? ` or email ${esc(d.email)}` : ''}.</p>
       <p style="margin-bottom:16px"><strong style="color:#E8E8E8;font-weight:500">Opt-out:</strong> Reply STOP to unsubscribe at any time. After unsubscribing, you will receive one confirmation message and no further texts.</p>
-      <p style="margin-bottom:16px"><strong style="color:#E8E8E8;font-weight:500">Privacy of mobile information:</strong> No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. Mobile opt-in data and consent will not be shared with any third party.</p>
+      <p style="margin-bottom:16px"><strong style="color:#E8E8E8;font-weight:500">Privacy of mobile information:</strong> Mobile phone numbers, SMS opt-in data, and SMS consent status will not be sold, rented, or shared with third parties or affiliates for their marketing or promotional purposes.</p>
       <h2 style="font-size:18px;font-weight:600;margin:36px 0 12px;color:#E8E8E8">6. Contact Us</h2>
       <p>If you have questions about this Privacy Policy, please contact us at: ${d.phone_sales ? `<a href="tel:${d.phone_sales.replace(/\D/g, '')}" style="color:${esc(c)}">${esc(d.phone_sales)}</a>` : ''}${d.email ? ` or <a href="mailto:${esc(d.email)}" style="color:${esc(c)}">${esc(d.email)}</a>` : ''}. Website: ${esc(d.subdomain)}.visquanta.com</p>
     </div>
@@ -815,7 +855,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     <h1 class="fd" style="font-size:40px;font-weight:500;margin-bottom:8px;letter-spacing:-0.02em">Terms and Conditions</h1>
     <p style="font-size:13px;color:#333;margin-bottom:48px">Effective Date: ${esc(d.terms_effective_date || 'Sep 15, 2025')}</p>
     <ol style="list-style:decimal;padding-left:20px;font-size:14px;color:#666;line-height:1.85;font-weight:300">
-      <li style="margin-bottom:12px">This SMS program sends recurring automated ${isTickets ? 'booking confirmations, trip itinerary updates, travel reminders' : 'appointment confirmations, service reminders, rescheduling notifications'}, and other account-related updates from ${esc(d.legal_entity_name)} ${d.dba_name ? `(DBA ${esc(d.dba_name)})` : ''} (website: ${esc(d.subdomain)}.visquanta.com) to customers who have opted in. No promotional or marketing messages are sent.</li>
+      <li style="margin-bottom:12px">This SMS program sends recurring automated ${isTickets ? 'booking confirmations, trip itinerary updates, travel reminders' : isCcw ? 'permit application assistance updates, qualification reminders, training-course access notifications' : 'appointment confirmations, service reminders, rescheduling notifications'}, and other account-related updates from ${esc(d.legal_entity_name)} ${d.dba_name ? `(DBA ${esc(d.dba_name)})` : ''} (website: ${esc(d.subdomain)}.visquanta.com) to customers who have opted in. No promotional or marketing messages are sent.</li>
       <li style="margin-bottom:12px">You can cancel at any time by replying STOP.</li>
       <li style="margin-bottom:12px">If you experience issues, reply HELP for assistance${d.phone_sms_help ? ` or call ${esc(d.phone_sms_help)}` : ''}${d.email ? ` or email ${esc(d.email)}` : ''}.</li>
       <li style="margin-bottom:12px">Carriers are not liable for delayed or undelivered messages.</li>
