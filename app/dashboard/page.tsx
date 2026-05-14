@@ -22,7 +22,7 @@ export default function DashboardPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all')
 
   const filtered = typeFilter === 'all' ? dealerships : dealerships.filter(d => (d.business_type || 'dealership') === typeFilter)
-  const customTypes = Array.from(new Set(dealerships.map(d => d.business_type || 'dealership'))).filter(t => !['dealership', 'gym', 'insurance', 'ccw'].includes(t))
+  const customTypes = Array.from(new Set(dealerships.map(d => d.business_type || 'dealership'))).filter(t => !['dealership', 'gym', 'insurance'].includes(t) && !isCcwBusiness(t))
 
   useEffect(() => { fetchDealerships() }, [])
 
