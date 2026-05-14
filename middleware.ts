@@ -27,7 +27,7 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  if (subdomain === 'db') {
+  if (subdomain === 'db' || subdomain === 'www.db') {
     const isDashboardPage = url.pathname === '/' || url.pathname === '' || url.pathname.startsWith('/dashboard')
     const isAuthApi = url.pathname.startsWith('/api/auth')
     const isLoginPage = url.pathname === '/login'
