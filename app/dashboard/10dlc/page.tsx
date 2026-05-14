@@ -9,6 +9,9 @@ type Brand = {
   companyName: string
   identityStatus: string
   assignedCampaignsCount: number
+  campaignId?: string | null
+  campaignStatus?: string | null
+  submissionStatus?: string | null
   website: string
   email: string
   // Merged from Supabase
@@ -246,6 +249,10 @@ export default function TenDLCPage() {
               <div key={r.brandId} className="text-xs">
                 <span className={r.success ? 'text-emerald-400' : 'text-red-400'}>{r.success ? 'OK' : 'FAIL'}</span>
                 <span className="text-white/70"> — {r.displayName}</span>
+                {r.success && r.data?.alreadyExists && <span className="text-white/40"> (already exists)</span>}
+                {r.success && !r.data?.alreadyExists && (r.data?.campaignId || r.data?.tcrCampaignId) && (
+                  <span className="text-white/40"> ({r.data.campaignId || r.data.tcrCampaignId})</span>
+                )}
                 {!r.success && r.error && (
                   <span className="text-white/40"> ({typeof r.error === 'string' ? r.error : JSON.stringify(r.error)})</span>
                 )}
@@ -333,7 +340,7 @@ export default function TenDLCPage() {
                 <div className="flex items-center gap-2">
                   {hasCampaign ? (
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      {brand.assignedCampaignsCount}
+                      {brand.campaignStatus || brand.submissionStatus || brand.assignedCampaignsCount}
                     </span>
                   ) : isExcluded ? (
                     <span className="text-[10px] text-white/20">Skip</span>

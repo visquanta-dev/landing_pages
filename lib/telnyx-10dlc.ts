@@ -3,6 +3,9 @@ export type TelnyxCampaignBrand = {
   displayName?: string | null
   companyName?: string | null
   dbaName?: string | null
+  phone?: string | null
+  contactEmail?: string | null
+  email?: string | null
   subdomain?: string | null
   domain?: string | null
   website?: string | null
@@ -12,7 +15,7 @@ export type TelnyxCampaignPayload = {
   brandId: string
   _displayName: string
   usecase: 'LOW_VOLUME'
-  subUsecases: ['DELIVERY_NOTIFICATION']
+  subUsecases: ['CUSTOMER_CARE']
   vertical: 'RETAIL'
   subscriberHelp: true
   subscriberOptin: true
@@ -28,11 +31,11 @@ export type TelnyxCampaignPayload = {
   description: string
   messageFlow: string
   helpMessage: string
-  optinKeywords: 'START'
+  optinKeywords: string
   optinMessage: string
-  optoutKeywords: 'STOP'
+  optoutKeywords: string
   optoutMessage: string
-  helpKeywords: 'HELP'
+  helpKeywords: string
   sample1: string
   sample2: string
   sample3: string
@@ -62,15 +65,19 @@ export function buildCampaign(brand: TelnyxCampaignBrand): TelnyxCampaignPayload
     ? `${brand.subdomain}.visquanta.com`
     : firstValue(hostname(brand.domain), hostname(brand.website), 'visquanta.com')
   const brandLabel = dba && dba !== legalName ? `${legalName} (DBA ${dba})` : legalName
-  const optInDisclosure = `By providing your phone number, you consent to receive recurring text messages from ${brandLabel}, including appointment confirmations, booking confirmations, reminders, rescheduling notifications, and account-related updates. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.`
-  const checkboxLabel = `I agree to receive recurring text messages from ${brandLabel}. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe.`
-  const optInConfirmation = `${dba}: You are subscribed to recurring automated messages. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe.`
+  const bookingUrl = `https://${domain}/#booking`
+  const privacyUrl = `https://${domain}/privacy-policy`
+  const termsUrl = `https://${domain}/terms-and-conditions`
+  const helpContact = firstValue(brand.phone, brand.contactEmail, brand.email, privacyUrl)
+  const optInDisclosure = `By checking this optional SMS consent box and submitting this form, you agree to receive recurring customer care text messages from ${brandLabel}, including appointment confirmations, booking confirmations, reminders, rescheduling updates, missed appointment follow-ups, and account-related service notifications. Message frequency varies based on your requests and appointments. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. We will not share your SMS opt-in or consent status with third parties for purposes unrelated to providing these messaging services.`
+  const checkboxLabel = `Optional: I agree to receive recurring customer care text messages from ${brandLabel} at the phone number provided. Message frequency varies. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Checking this box is not required to submit this form.`
+  const optInConfirmation = `${dba}: You are subscribed to customer care text messages. Msg frequency varies. Msg & data rates may apply. Reply HELP for help or STOP to unsubscribe.`
 
   return {
     brandId: brand.brandId,
     _displayName: dba,
     usecase: 'LOW_VOLUME',
-    subUsecases: ['DELIVERY_NOTIFICATION'],
+    subUsecases: ['CUSTOMER_CARE'],
     vertical: 'RETAIL',
     subscriberHelp: true,
     subscriberOptin: true,
@@ -81,20 +88,20 @@ export function buildCampaign(brand: TelnyxCampaignBrand): TelnyxCampaignPayload
     ageGated: false,
     directLending: false,
     termsAndConditions: true,
-    termsAndConditionsLink: `https://${domain}/terms-and-conditions`,
-    privacyPolicyLink: `https://${domain}/privacy-policy`,
-    description: `${brandLabel} uses this campaign to send recurring automated SMS appointment confirmations, booking confirmations, reminders, rescheduling notifications, and account-related updates to customers who request appointments, bookings, consultations, or related services through https://${domain} or through an in-person intake process. Customers provide explicit consent by entering their mobile number and selecting an unchecked SMS consent checkbox before submitting the form. The consent language discloses message frequency, message and data rates, HELP and STOP instructions, and that consent is not a condition of purchase. No promotional or marketing messages are sent as part of this campaign. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.`,
-    messageFlow: `Customers visit https://${domain} or complete an in-person intake form to request an appointment, booking, consultation, or related service. During the request process, customers enter their mobile number and must select an unchecked SMS consent checkbox before submitting. The SMS consent disclosure shown immediately above the checkbox reads: "${optInDisclosure}" The opt-in checkbox label reads: "${checkboxLabel}" Links to the privacy policy and terms and conditions are available on the website. After form submission and consent, the customer receives this opt-in confirmation SMS: "${optInConfirmation}"`,
-    helpMessage: `${dba}: For help, reply HELP and a team member will assist you. Message and data rates may apply. Reply STOP to unsubscribe.`,
-    optinKeywords: 'START',
+    termsAndConditionsLink: termsUrl,
+    privacyPolicyLink: privacyUrl,
+    description: `${brandLabel} uses this low-volume customer care campaign to send non-marketing SMS appointment confirmations, booking confirmations, reminders, rescheduling updates, missed appointment follow-ups, and account-related service notifications to customers who request appointments, bookings, consultations, or related services through ${bookingUrl}. Customers provide explicit consent only by entering their mobile number and selecting a separate, unchecked, optional SMS consent checkbox before submitting the website form. The campaign does not send promotional or marketing messages. The website includes accessible Privacy Policy and Terms & Conditions links, and the privacy policy states that SMS opt-in and consent data is not shared for purposes unrelated to providing the messaging service.`,
+    messageFlow: `Digital opt-in is collected at ${bookingUrl}. A customer navigates to the booking/request form, enters their name, mobile phone number, and requested appointment or service details, then can opt in to SMS by selecting a separate SMS consent checkbox. The checkbox is unchecked by default, optional, and not bundled with terms acceptance or any other consent. The SMS consent disclosure shown immediately above the checkbox reads: "${optInDisclosure}" The checkbox label reads: "${checkboxLabel}" The form displays direct Privacy Policy and Terms & Conditions links beside the consent disclosure: ${privacyUrl} and ${termsUrl}. After submitting the form with the SMS checkbox selected, the customer receives this confirmation SMS: "${optInConfirmation}" Customers who do not select the SMS checkbox can still submit the form and are not sent SMS messages. Customers can opt out at any time by replying STOP.`,
+    helpMessage: `${dba}: For help with customer care text messages, contact ${helpContact}. Msg & data rates may apply. Msg frequency varies. Reply STOP to unsubscribe.`,
+    optinKeywords: 'START,YES,SUBSCRIBE',
     optinMessage: optInConfirmation,
-    optoutKeywords: 'STOP',
-    optoutMessage: `${dba}: You are unsubscribed and will receive no further messages. Reply HELP for help.`,
-    helpKeywords: 'HELP',
-    sample1: `${dba}: Your appointment is confirmed for March 22 at 10:30 AM. Reply HELP for help or STOP to unsubscribe.`,
-    sample2: `${dba}: Reminder: your booking is tomorrow at 11:00 AM. Reply HELP for help or STOP to unsubscribe.`,
-    sample3: `${dba}: Your appointment has been rescheduled to July 20 at 11:00 AM. Reply HELP for help or STOP to unsubscribe.`,
-    sample4: `${dba}: We missed you for your appointment today. Reply HELP for help or STOP to unsubscribe.`,
+    optoutKeywords: 'STOP,UNSUBSCRIBE,CANCEL,QUIT',
+    optoutMessage: `${dba}: You are unsubscribed from customer care text messages. No more messages will be sent. Reply START to resubscribe.`,
+    helpKeywords: 'HELP,INFO',
+    sample1: `${dba}: Hi Alex, your appointment request is confirmed for Tue, Mar 22 at 10:30 AM. Reply HELP for help or STOP to unsubscribe.`,
+    sample2: `${dba}: Reminder for Jordan: your booking is tomorrow at 11:00 AM. Reply CONFIRM to confirm, HELP for help, or STOP to unsubscribe.`,
+    sample3: `${dba}: Your appointment has been rescheduled to Thu, Jul 20 at 11:00 AM. Reply HELP for help or STOP to unsubscribe.`,
+    sample4: `${dba}: We missed you for today's appointment. Reply HELP to reschedule with our team or STOP to unsubscribe.`,
   }
 }
 

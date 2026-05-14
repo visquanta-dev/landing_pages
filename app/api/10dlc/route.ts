@@ -12,7 +12,11 @@ const telnyxHeaders = {
 
 async function telnyxGet(path: string) {
   const res = await fetch(`${TELNYX_BASE}${path}`, { headers: telnyxHeaders, cache: 'no-store' })
-  return res.json()
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error(JSON.stringify(data))
+  }
+  return data
 }
 
 async function telnyxPost(path: string, body: any) {
@@ -22,6 +26,28 @@ async function telnyxPost(path: string, body: any) {
     body: JSON.stringify(body),
   })
   return { status: res.status, data: await res.json() }
+}
+
+function telnyxRecords(data: any): any[] {
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.records)) return data.records
+  if (Array.isArray(data?.data)) return data.data
+  if (Array.isArray(data?.data?.records)) return data.data.records
+  return []
+}
+
+function campaignId(data: any) {
+  return data?.campaignId || data?.tcrCampaignId || data?.id || null
+}
+
+async function listCampaignBuilderCampaigns() {
+  const res = await telnyxGet('/10dlc/campaignBuilder?page%5Bsize%5D=100')
+  return telnyxRecords(res)
+}
+
+async function listCampaignsForBrand(brandId: string) {
+  const builderCampaigns = await listCampaignBuilderCampaigns()
+  return builderCampaigns.filter(c => c.brandId === brandId)
 }
 
 // GET — fetch brands + dealership data merged
@@ -38,6 +64,19 @@ export async function GET(req: NextRequest) {
         if (res.records) allBrands.push(...res.records)
         if (!res.records || res.records.length < 50) break
         page++
+      }
+
+      let campaignCounts = new Map<string, number>()
+      let latestCampaignByBrand = new Map<string, any>()
+      try {
+        const campaigns = await listCampaignBuilderCampaigns()
+        for (const campaign of campaigns) {
+          if (!campaign.brandId) continue
+          campaignCounts.set(campaign.brandId, (campaignCounts.get(campaign.brandId) || 0) + 1)
+          latestCampaignByBrand.set(campaign.brandId, campaign)
+        }
+      } catch {
+        // Fall back to Telnyx brand assignedCampaignsCount if campaignBuilder listing is unavailable.
       }
 
       // Fetch dealership data from Supabase
@@ -61,8 +100,14 @@ export async function GET(req: NextRequest) {
 
       const merged = allBrands.map(brand => {
         const dealer = dealerMap.get(normalize(brand.companyName))
+        const builderCount = campaignCounts.get(brand.brandId) || 0
+        const latestCampaign = latestCampaignByBrand.get(brand.brandId)
         return {
           ...brand,
+          assignedCampaignsCount: Math.max(Number(brand.assignedCampaignsCount || 0), builderCount),
+          campaignId: latestCampaign ? campaignId(latestCampaign) : null,
+          campaignStatus: latestCampaign?.campaignStatus || latestCampaign?.status || null,
+          submissionStatus: latestCampaign?.submissionStatus || null,
           // Supabase data
           phone: dealer?.phone_sales || null,
           contactEmail: dealer?.email || null,
@@ -80,8 +125,8 @@ export async function GET(req: NextRequest) {
     if (action === 'campaigns') {
       const brandId = req.nextUrl.searchParams.get('brandId')
       if (!brandId) return NextResponse.json({ error: 'brandId required' }, { status: 400 })
-      const res = await telnyxGet(`/10dlc/campaign?brandId=${brandId}`)
-      return NextResponse.json(res)
+      const records = await listCampaignsForBrand(brandId)
+      return NextResponse.json({ page: 1, records, totalRecords: records.length, source: 'campaignBuilder' })
     }
 
     return NextResponse.json({ error: 'action param required (brands, campaigns)' }, { status: 400 })
@@ -98,9 +143,16 @@ export async function POST(req: NextRequest) {
 
     if (action === 'create_campaign') {
       const campaign = stripInternalCampaignFields(payload.campaign)
+      const existing = await listCampaignsForBrand(String(campaign.brandId || ''))
+      if (existing.length > 0) {
+        return NextResponse.json({ alreadyExists: true, ...existing[0] })
+      }
       const result = await telnyxPost('/10dlc/campaignBuilder', campaign)
       if (result.status >= 400) {
         return NextResponse.json({ error: result.data }, { status: result.status })
+      }
+      if (!campaignId(result.data)) {
+        return NextResponse.json({ error: 'Telnyx did not return a campaignId', details: result.data }, { status: 502 })
       }
       return NextResponse.json(result.data)
     }
@@ -113,13 +165,26 @@ export async function POST(req: NextRequest) {
         const displayName = campaign._displayName
         try {
           const telnyxCampaign = stripInternalCampaignFields(campaign)
+          const existing = await listCampaignsForBrand(String(campaign.brandId || ''))
+          if (existing.length > 0) {
+            results.push({
+              brandId: campaign.brandId,
+              displayName,
+              success: true,
+              data: { alreadyExists: true, ...existing[0] },
+              error: null,
+            })
+            continue
+          }
+
           const result = await telnyxPost('/10dlc/campaignBuilder', telnyxCampaign)
+          const createdCampaignId = campaignId(result.data)
           results.push({
             brandId: campaign.brandId,
             displayName,
-            success: result.status < 400,
+            success: result.status < 400 && Boolean(createdCampaignId),
             data: result.data,
-            error: result.status >= 400 ? result.data : null,
+            error: result.status >= 400 ? result.data : createdCampaignId ? null : 'Telnyx did not return a campaignId',
           })
         } catch (e: any) {
           results.push({
