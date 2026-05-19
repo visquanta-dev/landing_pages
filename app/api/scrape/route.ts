@@ -51,6 +51,13 @@ export async function POST(req: NextRequest) {
       services: defaultServicesForBusinessType(businessType),
     }
 
+    if (looksLikeStubPage(result.dealership_name, result.brand, html)) {
+      console.log('[scrape] Stub page detected — refusing to return placeholder data. Title was:', JSON.stringify(result.dealership_name))
+      return NextResponse.json({
+        error: `The site returned a bot-protection / placeholder page (title: "${result.dealership_name || '<empty>'}"). Firecrawl + 3 fallback strategies could not get real content. Enter the dealer details manually, or try again in a moment.`,
+      }, { status: 422 })
+    }
+
     console.log('[scrape] Total request duration(ms):', Date.now() - requestStartedAt)
     return NextResponse.json(result)
   } catch (e: any) {
@@ -58,32 +65,110 @@ export async function POST(req: NextRequest) {
   }
 }
 
+const STUB_TITLE_NAMES = new Set([
+  '', 'dealer website', 'untitled', 'home', 'home page', 'welcome',
+  'access denied', 'forbidden', 'just a moment', 'just a moment...',
+  'attention required', 'attention required!', 'cloudflare',
+  'site under maintenance', 'maintenance', '403 forbidden', 'error',
+  'content blocked', 'request blocked', 'blocked',
+  'please verify you are human', 'security check', 'verifying you are human',
+  'page not found', '404 not found', 'not found',
+])
+
+function looksLikeStubPage(name: string, brand: string, html: string): boolean {
+  const normalized = (name || '').trim().toLowerCase()
+  if (STUB_TITLE_NAMES.has(normalized)) return true
+  // Bot-wall heuristic: generic title AND no recognized auto brand AND no og:* metadata.
+  const hasOg = /<meta[^>]*property=["']og:(title|site_name|description)["']/i.test(html)
+  if (brand === 'Other' && !hasOg && normalized.length < 6) return true
+  return false
+}
+
 async function fetchWithFallbacks(url: string): Promise<string | null> {
   const startedAt = Date.now()
 
+  console.log('[scrape] Strategy 0: Firecrawl for', url)
+  const fc = await fetchViaFirecrawl(url, startedAt)
+  if (fc && fc.length > 500 && !looksLikeStubHtml(fc)) {
+    console.log('[scrape] Firecrawl succeeded:', fc.length, 'chars')
+    return fc
+  }
+
   console.log('[scrape] Strategy 1: Direct fetch for', url)
   const direct = await fetchDirect(url, startedAt)
-  if (direct && direct.length > 500) {
+  if (direct && direct.length > 500 && !looksLikeStubHtml(direct)) {
     console.log('[scrape] Direct fetch succeeded:', direct.length, 'chars')
     return direct
   }
 
   console.log('[scrape] Strategy 2: Proxy fetch for', url)
   const proxied = await fetchViaProxy(url, startedAt)
-  if (proxied && proxied.length > 500) {
+  if (proxied && proxied.length > 500 && !looksLikeStubHtml(proxied)) {
     console.log('[scrape] Proxy fetch succeeded:', proxied.length, 'chars')
     return proxied
   }
 
   console.log('[scrape] Strategy 3: Alternative proxy for', url)
   const alt = await fetchViaAltProxy(url, startedAt)
-  if (alt && alt.length > 500) {
+  if (alt && alt.length > 500 && !looksLikeStubHtml(alt)) {
     console.log('[scrape] Alt proxy succeeded:', alt.length, 'chars')
     return alt
   }
 
-  console.log('[scrape] All strategies failed for', url)
-  return null
+  // Last resort: return whatever non-empty html we did get (caller still applies stub guard on extracted name)
+  console.log('[scrape] All strategies returned stub or failed; returning last non-empty html if any')
+  return direct || proxied || alt || fc || null
+}
+
+function looksLikeStubHtml(html: string): boolean {
+  const head = html.slice(0, 4096).toLowerCase()
+  if (/<title>\s*dealer website\s*<\/title>/i.test(html)) return true
+  if (/<title>\s*content blocked\s*<\/title>/i.test(html)) return true
+  if (head.includes('just a moment') && head.includes('cloudflare')) return true
+  if (head.includes('attention required') && head.includes('cloudflare')) return true
+  return false
+}
+
+async function fetchViaFirecrawl(url: string, startedAt: number): Promise<string | null> {
+  const apiKey = process.env.FIRECRAWL_API_KEY
+  if (!apiKey) {
+    console.log('[scrape] Firecrawl: FIRECRAWL_API_KEY not set, skipping')
+    return null
+  }
+  const timeoutMs = computeTimeoutMs(startedAt, 35000)
+  if (timeoutMs <= 0) return null
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), timeoutMs)
+    const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        formats: ['html'],
+        onlyMainContent: false,
+        waitFor: 1500,
+        timeout: Math.min(timeoutMs, 30000),
+      }),
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+    if (!res.ok) {
+      console.log('[scrape] Firecrawl HTTP', res.status)
+      return null
+    }
+    const data = await res.json()
+    const html = data?.data?.html
+    if (typeof html === 'string' && html.length > 500) return html
+    console.log('[scrape] Firecrawl returned no usable html, success=', data?.success)
+    return null
+  } catch (e) {
+    console.log('[scrape] Firecrawl error:', (e as Error).message)
+    return null
+  }
 }
 
 async function withGlobalTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
