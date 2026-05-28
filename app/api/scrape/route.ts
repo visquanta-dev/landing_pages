@@ -399,8 +399,13 @@ function extractAddress(html: string): { line1: string; city: string; state: str
     const parts = { line1: cleanText(streetMatch || ''), city: cleanText(cityMatch || ''), state: cleanText(stateMatch || ''), zip: cleanText(zipMatch || '') }
     return { ...parts, full: [parts.line1, parts.city, parts.state, parts.zip].filter(Boolean).join(', ') }
   }
-  const addrRegex = /(\d+\s+[A-Z][a-zA-Z\s.]+(?:St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Way|Ln|Lane|Ct|Court|Pkwy|Parkway|Hwy|Highway)[.,]*)\s*(?:,?\s*)([A-Z][a-zA-Z\s]+),?\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)/
-  const addrMatch = html.match(addrRegex)
+  // Run the loose pattern against the tag-stripped text, not raw HTML. In
+  // Firecrawl's rendered output (no <head>, no JSON-LD/microdata) the footer
+  // address is split across tags — "240 Service Rd" and "Oklahoma City, OK 73149"
+  // sit in separate elements, so a raw-HTML match never fires. Stripping tags
+  // makes the line contiguous. Non-greedy street name keeps line1 tight.
+  const addrRegex = /(\d+\s+[A-Z][a-zA-Z\s.]+?(?:St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Way|Ln|Lane|Ct|Court|Pkwy|Parkway|Hwy|Highway)[.,]*)\s*(?:,?\s*)([A-Z][a-zA-Z\s]+),?\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)/
+  const addrMatch = stripTags(html).match(addrRegex)
   if (addrMatch) {
     return { line1: addrMatch[1].trim().replace(/[.,]+$/, ''), city: addrMatch[2].trim(), state: addrMatch[3].trim(), zip: addrMatch[4].trim(), full: addrMatch[0].trim() }
   }
