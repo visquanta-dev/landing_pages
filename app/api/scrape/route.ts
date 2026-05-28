@@ -133,6 +133,41 @@ function looksLikeStubHtml(html: string): boolean {
   return false
 }
 
+function firstMeta(value: unknown): string {
+  if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : ''
+  return typeof value === 'string' ? value : ''
+}
+
+function escapeAttr(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+// Firecrawl returns rendered HTML with NO <head> (title/meta/og are in
+// data.metadata instead). Rebuild a minimal <head> so the downstream
+// regex extractors and business-type inference have real signals to read.
+function synthesizeHead(metadata: any): string {
+  if (!metadata || typeof metadata !== 'object') return ''
+  const title = firstMeta(metadata.title) || firstMeta(metadata['og:title']) || firstMeta(metadata.ogTitle)
+  const description = firstMeta(metadata.description) || firstMeta(metadata['og:description']) || firstMeta(metadata.ogDescription)
+  const ogTitle = firstMeta(metadata['og:title']) || firstMeta(metadata.ogTitle) || title
+  const ogSiteName = firstMeta(metadata['og:site_name']) || firstMeta(metadata.ogSiteName)
+  const ogImage = firstMeta(metadata['og:image']) || firstMeta(metadata.ogImage)
+  const parts: string[] = []
+  if (title) parts.push(`<title>${escapeAttr(title)}</title>`)
+  if (description) parts.push(`<meta name="description" content="${escapeAttr(description)}">`)
+  if (ogTitle) parts.push(`<meta property="og:title" content="${escapeAttr(ogTitle)}">`)
+  if (ogSiteName) parts.push(`<meta property="og:site_name" content="${escapeAttr(ogSiteName)}">`)
+  if (description) parts.push(`<meta property="og:description" content="${escapeAttr(description)}">`)
+  if (ogImage) parts.push(`<meta property="og:image" content="${escapeAttr(ogImage)}">`)
+  if (!parts.length) return ''
+  return `<head>${parts.join('')}</head>`
+}
+
 async function fetchViaFirecrawl(url: string, startedAt: number): Promise<string | null> {
   const apiKey = process.env.FIRECRAWL_API_KEY
   if (!apiKey) {
@@ -166,7 +201,13 @@ async function fetchViaFirecrawl(url: string, startedAt: number): Promise<string
     }
     const data = await res.json()
     const html = data?.data?.html
-    if (typeof html === 'string' && html.length > 500) return html
+    if (typeof html === 'string' && html.length > 500) {
+      // Firecrawl returns rendered HTML WITHOUT a <head> — title/meta/og live in
+      // data.metadata instead. Re-inject a synthetic <head> so the regex-based
+      // extractors below (name, title, description, logo, business-type) work.
+      // Without this the first <title> match is an inline SVG <title> (e.g. "Text").
+      return synthesizeHead(data?.data?.metadata) + html
+    }
     console.log('[scrape] Firecrawl returned no usable html, success=', data?.success)
     return null
   } catch (e) {
