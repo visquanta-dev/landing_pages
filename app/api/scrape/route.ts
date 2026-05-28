@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { defaultServicesForBusinessType, inferBusinessTypeFromText } from '@/lib/site-niche'
+import { BUSINESS_TYPE_OPTIONS, defaultServicesForBusinessType, inferBusinessTypeFromText, normalizeBusinessType } from '@/lib/site-niche'
+
+const KNOWN_BUSINESS_TYPES = new Set(BUSINESS_TYPE_OPTIONS.map(option => option.value))
 
 export const maxDuration = 60
 const SCRAPE_BUDGET_MS = 55000
@@ -8,7 +10,7 @@ const PROCESSING_BUDGET_MS = 12000
 export async function POST(req: NextRequest) {
   try {
     const requestStartedAt = Date.now()
-    const { url } = await req.json()
+    const { url, business_type: businessTypeOverride } = await req.json()
     if (!url) return NextResponse.json({ error: 'URL is required' }, { status: 400 })
 
     let targetUrl = url.trim()
@@ -21,8 +23,10 @@ export async function POST(req: NextRequest) {
     const extractStartedAt = Date.now()
     const hasBudget = () => Date.now() - extractStartedAt < PROCESSING_BUDGET_MS
 
-    const pageText = `${extractMeta(html, 'title')} ${extractMeta(html, 'description')} ${stripTags(html).slice(0, 12000)}`
-    const businessType = timedExtract('business_type', () => inferBusinessTypeFromText(pageText))
+    const normalizedOverride = businessTypeOverride ? normalizeBusinessType(businessTypeOverride) : ''
+    const businessType = normalizedOverride && KNOWN_BUSINESS_TYPES.has(normalizedOverride)
+      ? normalizedOverride
+      : timedExtract('business_type', () => inferBusinessTypeFromText(`${extractMeta(html, 'title')} ${extractMeta(html, 'description')} ${stripTags(html).slice(0, 12000)}`))
 
     const result = {
       source_url: targetUrl,

@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
         const supabase = createServiceClient()
         const { data } = await supabase
           .from('dealerships')
-          .select('dealership_name, legal_entity_name, dba_name, phone_sales, email, subdomain, address_city, address_state')
+          .select('dealership_name, legal_entity_name, dba_name, phone_sales, email, subdomain, address_city, address_state, business_type')
         dealerships = data || []
       } catch {
         // Supabase might not be configured, continue without it
@@ -116,6 +116,7 @@ export async function GET(req: NextRequest) {
           city: dealer?.address_city || null,
           state: dealer?.address_state || null,
           dbaName: dealer?.dba_name || brand.displayName,
+          businessType: dealer?.business_type || null,
         }
       })
 

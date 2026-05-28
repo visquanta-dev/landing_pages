@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import type { Dealership } from '@/lib/supabase'
 import DealerForm from '@/components/DealerForm'
-import { businessTypeLabel, isCcwBusiness, isGymBusiness, isInsuranceBusiness, isServiceBusiness, normalizeBusinessType } from '@/lib/site-niche'
+import { BUSINESS_TYPE_OPTIONS, businessTypeLabel, isCcwBusiness, isGymBusiness, isInsuranceBusiness, isServiceBusiness, normalizeBusinessType } from '@/lib/site-niche'
 
 export default function DashboardPage() {
   const [dealerships, setDealerships] = useState<Dealership[]>([])
@@ -12,6 +12,7 @@ export default function DashboardPage() {
   const [editing, setEditing] = useState<Dealership | null>(null)
   const [showScraper, setShowScraper] = useState(false)
   const [scrapeUrl, setScrapeUrl] = useState('')
+  const [scrapeType, setScrapeType] = useState<string>('auto')
   const [scraping, setScraping] = useState(false)
   const [scrapeData, setScrapeData] = useState<any>(null)
   const [scrapeError, setScrapeError] = useState('')
@@ -68,7 +69,10 @@ export default function DashboardPage() {
       const res = await fetch('/api/scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: scrapeUrl }),
+        body: JSON.stringify({
+          url: scrapeUrl,
+          ...(scrapeType !== 'auto' ? { business_type: scrapeType } : {}),
+        }),
       })
       const text = await res.text()
       let data
@@ -190,7 +194,7 @@ export default function DashboardPage() {
             + Manual
           </button>
           <button
-            onClick={() => { setShowScraper(true); setScrapeUrl(''); setScrapeError(''); setScrapeData(null) }}
+            onClick={() => { setShowScraper(true); setScrapeUrl(''); setScrapeType('auto'); setScrapeError(''); setScrapeData(null) }}
             className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-red-600/20 flex items-center gap-2"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -267,6 +271,21 @@ export default function DashboardPage() {
                   autoFocus
                 />
               </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-white/40 uppercase tracking-widest mb-1.5">Site Type</label>
+                <select
+                  value={scrapeType}
+                  onChange={e => setScrapeType(e.target.value)}
+                  className="w-full bg-[#0A0A0A] border border-white/[0.08] rounded-lg px-4 py-3 text-sm text-white focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20 outline-none transition-all appearance-none cursor-pointer"
+                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center', paddingRight: '36px' }}
+                >
+                  <option value="auto" style={{ background: '#111' }}>Auto-detect from page content</option>
+                  {BUSINESS_TYPE_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value} style={{ background: '#111' }}>{option.label}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-white/30 mt-1.5 leading-relaxed">{scrapeType === 'auto' ? 'We’ll guess from the page content. Pick a specific type to override.' : `Builder will skip auto-detection and treat this as ${businessTypeLabel(scrapeType)}.`}</p>
+              </div>
               {scrapeError && (
                 <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-sm text-red-400">{scrapeError}</div>
               )}
@@ -302,7 +321,7 @@ export default function DashboardPage() {
           <p className="text-white/50 mb-2">No dealerships yet</p>
           <p className="text-white/30 text-sm mb-6">Paste a dealer website URL to get started in seconds.</p>
           <button
-            onClick={() => { setShowScraper(true); setScrapeUrl(''); setScrapeError('') }}
+            onClick={() => { setShowScraper(true); setScrapeUrl(''); setScrapeType('auto'); setScrapeError('') }}
             className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-6 py-3 rounded-lg transition-all inline-flex items-center gap-2"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>

@@ -180,7 +180,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       : `By checking the optional SMS consent box and providing your phone number, you consent to receive recurring text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''}, including appointment confirmations, booking confirmations, reminders, rescheduling notifications, and account-related updates. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.`)
   const smsCheckboxLabel =
     d.sms_checkbox_label ||
-    `Optional: I agree to receive recurring text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''} at the phone number provided. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Checking this box is not required to submit this form.`
+    `I agree to receive recurring text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''} at the phone number provided. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Checking this box is not required to submit this form.`
 
   // ── VEHICLES / SERVICES SECTION ──
   let middleSectionHTML = ''
@@ -316,6 +316,118 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       <span style="font-weight:500;color:#E8E8E8">${esc(time as string)}</span>
     </div>
   `).join('')
+
+  const ageConfirmHTML = isCcw ? `
+    <div style="margin-top:28px;padding:24px;border:1px solid ${esc(c)}40;border-radius:12px;background:${esc(c)}0a">
+      <p style="font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#E8E8E8;margin-bottom:14px">Birthdate Verification</p>
+      <div>
+        <label id="form-birthdate-label" style="display:block;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Date of Birth</label>
+        <div aria-labelledby="form-birthdate-label" style="display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:10px">
+          <input name="date_of_birth_month" class="lp-input" inputmode="numeric" pattern="[0-9]*" placeholder="MM" maxlength="2" required oninput="this.value=this.value.replace(/\\D/g,'').slice(0,2);this.setCustomValidity('')" />
+          <input name="date_of_birth_day" class="lp-input" inputmode="numeric" pattern="[0-9]*" placeholder="DD" maxlength="2" required oninput="this.value=this.value.replace(/\\D/g,'').slice(0,2);this.setCustomValidity('')" />
+          <input name="date_of_birth_year" class="lp-input" inputmode="numeric" pattern="[0-9]*" placeholder="YYYY" maxlength="4" required oninput="this.value=this.value.replace(/\\D/g,'').slice(0,4);this.setCustomValidity('')" />
+        </div>
+        <p style="font-size:13px;line-height:1.6;color:#999;margin-top:10px">Required for concealed carry permit assistance. You must be at least 21 years old to submit this form.</p>
+      </div>
+    </div>
+  ` : ''
+
+  const ageGateHTML = isCcw ? `
+    <div id="vq-age-gate" role="dialog" aria-modal="true" aria-labelledby="vq-age-gate-title" style="position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,0.92);backdrop-filter:blur(12px);display:none;align-items:center;justify-content:center;padding:24px;font-family:'Outfit',sans-serif;color:#E8E8E8">
+      <div style="max-width:520px;width:100%;background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:40px;text-align:center">
+        <div id="vq-age-gate-prompt">
+          <p style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:${esc(c)};margin-bottom:16px">Age Verification</p>
+          <h2 id="vq-age-gate-title" class="fd" style="font-size:28px;font-weight:500;letter-spacing:-0.02em;margin-bottom:16px;line-height:1.2">Enter your date of birth</h2>
+          <p style="font-size:14px;line-height:1.65;color:#A0A0A0;margin-bottom:32px">This site provides information and assistance related to concealed carry weapon (CCW) permits and firearms-related services. You must be at least 21 years of age to access this content.</p>
+          <form id="vq-age-gate-form" style="display:flex;flex-direction:column;gap:14px">
+            <div style="text-align:left">
+              <label id="vq-age-birthdate-label" style="display:block;font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#999;margin-bottom:8px">Date of birth</label>
+              <div aria-labelledby="vq-age-birthdate-label" style="display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:10px">
+                <input id="vq-age-month" inputmode="numeric" pattern="[0-9]*" placeholder="MM" maxlength="2" required style="width:100%;padding:15px 16px;background:#090909;border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#FAFAFA;font-family:'Outfit',sans-serif;font-size:16px;outline:none" />
+                <input id="vq-age-day" inputmode="numeric" pattern="[0-9]*" placeholder="DD" maxlength="2" required style="width:100%;padding:15px 16px;background:#090909;border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#FAFAFA;font-family:'Outfit',sans-serif;font-size:16px;outline:none" />
+                <input id="vq-age-year" inputmode="numeric" pattern="[0-9]*" placeholder="YYYY" maxlength="4" required style="width:100%;padding:15px 16px;background:#090909;border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#FAFAFA;font-family:'Outfit',sans-serif;font-size:16px;outline:none" />
+              </div>
+            </div>
+            <p id="vq-age-error" role="alert" style="display:none;margin:0;text-align:left;font-size:13px;color:#FCA5A5"></p>
+            <button type="submit" style="width:100%;padding:18px;background:${esc(c)};color:#FFFFFF;border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:0.05em;text-transform:uppercase">Verify Age</button>
+          </form>
+        </div>
+        <div id="vq-age-gate-blocked" style="display:none">
+          <p style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:${esc(c)};margin-bottom:16px">Access Restricted</p>
+          <h2 class="fd" style="font-size:26px;font-weight:500;letter-spacing:-0.02em;margin-bottom:16px;line-height:1.2">Please come back when you&rsquo;re 21.</h2>
+          <p style="font-size:14px;line-height:1.65;color:#A0A0A0">Access to this site is restricted to persons 21 years of age or older. Thank you for your understanding.</p>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function(){
+        var KEY = 'vq-age-confirmed-ccw';
+        var gate = document.getElementById('vq-age-gate');
+        var prompt = document.getElementById('vq-age-gate-prompt');
+        var blocked = document.getElementById('vq-age-gate-blocked');
+        try {
+          if (window.localStorage && window.localStorage.getItem(KEY) === 'yes') { return; }
+        } catch(e) {}
+        if (!gate) return;
+        gate.style.display = 'flex';
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+        function ageFromBirthdate(month, day, year) {
+          var m = Number(month);
+          var d = Number(day);
+          var y = Number(year);
+          if (!m || !d || !y || y < 1900 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+          var birth = new Date(y, m - 1, d);
+          if (birth.getFullYear() !== y || birth.getMonth() !== m - 1 || birth.getDate() !== d) return null;
+          var today = new Date();
+          var age = today.getFullYear() - birth.getFullYear();
+          var monthDiff = today.getMonth() - birth.getMonth();
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age--;
+          return age;
+        }
+        var form = document.getElementById('vq-age-gate-form');
+        var monthInput = document.getElementById('vq-age-month');
+        var dayInput = document.getElementById('vq-age-day');
+        var yearInput = document.getElementById('vq-age-year');
+        var error = document.getElementById('vq-age-error');
+        [monthInput, dayInput, yearInput].forEach(function(input){
+          if (!input) return;
+          input.addEventListener('input', function(){
+            input.value = input.value.replace(/\\D/g, '').slice(0, input.maxLength || 4);
+            if (error) error.style.display = 'none';
+          });
+        });
+        if (form) form.addEventListener('submit', function(event){
+          event.preventDefault();
+          var age = ageFromBirthdate(monthInput ? monthInput.value : '', dayInput ? dayInput.value : '', yearInput ? yearInput.value : '');
+          if (age === null) {
+            if (error) {
+              error.textContent = 'Enter a valid date of birth.';
+              error.style.display = 'block';
+            }
+            return;
+          }
+          if (age < 21) {
+            if (prompt) prompt.style.display = 'none';
+            if (blocked) blocked.style.display = 'block';
+            return;
+          }
+          try { window.localStorage.setItem(KEY, 'yes'); } catch(e) {}
+          window.scrollTo(0, 0);
+          gate.style.display = 'none';
+          document.documentElement.style.overflow = '';
+          document.body.style.overflow = '';
+        });
+      })();
+    </script>
+  ` : ''
+
+  const ccwAgeRequirementHTML = isCcw ? `
+    <div style="margin-bottom:32px;padding:20px;border:1px solid ${esc(c)}40;border-radius:12px;background:${esc(c)}0a">
+      <h2 style="font-size:18px;font-weight:600;margin-bottom:8px;color:#E8E8E8">Age Requirement &mdash; 21+</h2>
+      <p style="margin:0;font-size:14px;line-height:1.7;color:#B0B0B0">Access to this site, its services, and any SMS communications is restricted to persons <strong style="color:#E8E8E8;font-weight:600">21 years of age or older</strong>. By using this site or submitting any form, you affirm that you are at least 21 years of age. Visitors who indicate they are under 21 will not be able to access the site or receive messages.</p>
+    </div>
+  ` : ''
 
   const smsConsentHTML = `
     <div style="margin-top:28px;padding:24px;border:1px solid rgba(255,255,255,0.06);border-radius:12px;background:rgba(255,255,255,0.015)">
@@ -533,6 +645,38 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
         input.value = '';
       }
     }`
+  const ageSubmitValidationScript = isCcw ? `
+      var dobMonth = document.querySelector('[name="date_of_birth_month"]');
+      var dobDay = document.querySelector('[name="date_of_birth_day"]');
+      var dobYear = document.querySelector('[name="date_of_birth_year"]');
+      function formAgeFromBirthdate(month, day, year) {
+        var m = Number(month);
+        var d = Number(day);
+        var y = Number(year);
+        if (!m || !d || !y || y < 1900 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+        var birth = new Date(y, m - 1, d);
+        if (birth.getFullYear() !== y || birth.getMonth() !== m - 1 || birth.getDate() !== d) return null;
+        var today = new Date();
+        var age = today.getFullYear() - birth.getFullYear();
+        var monthDiff = today.getMonth() - birth.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age--;
+        return age;
+      }
+      var age = formAgeFromBirthdate(dobMonth ? dobMonth.value : '', dobDay ? dobDay.value : '', dobYear ? dobYear.value : '');
+      if (!dobMonth || !dobDay || !dobYear || age === null) {
+        if (dobYear) {
+          dobYear.setCustomValidity('Enter a valid date of birth.');
+          dobYear.reportValidity();
+        }
+        return;
+      }
+      if (age < 21) {
+        dobYear.setCustomValidity('You must be at least 21 years old to submit this form.');
+        dobYear.reportValidity();
+        return;
+      }
+      dobYear.setCustomValidity('');
+` : ''
 
   // ── INDEX.HTML ──
   const indexHTML = `<!DOCTYPE html>
@@ -543,6 +687,8 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
   ${sharedStyles(c, cDark)}
 </head>
 <body>
+
+  ${ageGateHTML}
 
   ${navHTML(d, c)}
 
@@ -691,6 +837,8 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
           <textarea class="lp-input" name="details" placeholder="${textareaPlaceholder}" style="min-height:100px;resize:vertical"></textarea>
         </div>
 
+        ${ageConfirmHTML}
+
         ${smsConsentHTML}
 
         <button type="submit" id="submit-btn" style="margin-top:32px;width:100%;padding:22px;background:${esc(c)};color:#FFFFFF;border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:18px;font-weight:700;cursor:pointer;letter-spacing:0.05em;text-transform:uppercase;transition:all 0.3s ease;box-shadow:0 8px 30px ${c}33">
@@ -776,6 +924,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ${dateChangeScript}
     function handleSubmit(e) {
       e.preventDefault();
+      ${ageSubmitValidationScript}
       var btn = document.getElementById('submit-btn');
       btn.disabled = true;
       btn.style.opacity = '0.5';
@@ -811,6 +960,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     <a href="/" style="display:inline-flex;align-items:center;gap:8px;color:${esc(c)};text-decoration:none;font-size:13px;font-weight:500;margin-bottom:40px">&larr; Back to Home</a>
     <h1 class="fd" style="font-size:40px;font-weight:500;margin-bottom:8px;letter-spacing:-0.02em">Privacy Policy</h1>
     <p style="font-size:13px;color:#333;margin-bottom:48px">Effective Date: ${esc(d.privacy_effective_date || 'Sep 15, 2025')}</p>
+    ${ccwAgeRequirementHTML}
     <div style="font-size:14px;color:#666;line-height:1.85;font-weight:300">
       <p style="margin-bottom:16px">At ${esc(d.legal_entity_name)} (operating at ${esc(d.subdomain)}.visquanta.com) we respect and value your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website, use our services, or engage with us in other ways.</p>
       <h2 style="font-size:18px;font-weight:600;margin:36px 0 12px;color:#E8E8E8">1. Information We Collect</h2>
@@ -854,6 +1004,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     <a href="/" style="display:inline-flex;align-items:center;gap:8px;color:${esc(c)};text-decoration:none;font-size:13px;font-weight:500;margin-bottom:40px">&larr; Back to Home</a>
     <h1 class="fd" style="font-size:40px;font-weight:500;margin-bottom:8px;letter-spacing:-0.02em">Terms and Conditions</h1>
     <p style="font-size:13px;color:#333;margin-bottom:48px">Effective Date: ${esc(d.terms_effective_date || 'Sep 15, 2025')}</p>
+    ${ccwAgeRequirementHTML}
     <ol style="list-style:decimal;padding-left:20px;font-size:14px;color:#666;line-height:1.85;font-weight:300">
       <li style="margin-bottom:12px">This SMS program sends recurring automated ${isTickets ? 'booking confirmations, trip itinerary updates, travel reminders' : isCcw ? 'permit application assistance updates, qualification reminders, training-course access notifications' : 'appointment confirmations, service reminders, rescheduling notifications'}, and other account-related updates from ${esc(d.legal_entity_name)} ${d.dba_name ? `(DBA ${esc(d.dba_name)})` : ''} (website: ${esc(d.subdomain)}.visquanta.com) to customers who have opted in. No promotional or marketing messages are sent.</li>
       <li style="margin-bottom:12px">You can cancel at any time by replying STOP.</li>

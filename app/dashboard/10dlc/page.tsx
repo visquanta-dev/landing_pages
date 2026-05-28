@@ -22,6 +22,7 @@ type Brand = {
   city: string | null
   state: string | null
   dbaName: string
+  businessType: string | null
 }
 
 type BulkResult = {

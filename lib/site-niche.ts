@@ -92,12 +92,23 @@ export function defaultServicesForBusinessType(value?: string | null): ServiceIt
 
 export function inferBusinessTypeFromText(text: string) {
   const haystack = text.toLowerCase()
+
+  // Dealership is checked first because car-dealer pages routinely use generic
+  // insurance-adjacent words ("warranty coverage", "request a quote", "premium trim")
+  // that would otherwise false-positive into the insurance branch.
+  const dealerBrand = /\b(toyota|ford|chevrolet|chevy|honda|hyundai|kia|nissan|volkswagen|vw|subaru|mazda|bmw|mercedes|mercedes-benz|audi|jeep|ram|dodge|chrysler|gmc|lexus|acura|buick|cadillac|lincoln|mitsubishi|volvo|porsche|jaguar|land rover|range rover|tesla|genesis|infiniti|fiat|alfa romeo|maserati|bentley|rolls-royce|aston martin|mclaren|lamborghini|ferrari|polestar|rivian|lucid)\b/
+  const dealerSignal = /\b(dealer|dealers|dealership|dealerships|vehicle|vehicles|inventory|test drive|test-drive|new cars|used cars|pre-owned|preowned|certified pre-owned|cpo|service department|parts department|trade.in|finance department|auto group|motors|automotive)\b/
+  if (dealerBrand.test(haystack) || dealerSignal.test(haystack)) return 'dealership'
+
   if (/\b(ccw|concealed carry|conceal carry|concealed handgun|firearms safety|gun laws|permit holder|permit holders|new hampshire application|state acceptance)\b/.test(haystack)) return 'ccw'
-  if (/\b(solar|panel|panels|photovoltaic|battery storage|renewable energy|energy bill|ev charger)\b/.test(haystack)) return 'solar'
-  if (/\b(disability|social security|ssi|ssdi|benefits|claim|claims|appeal)\b/.test(haystack)) return 'disability'
-  if (/\b(insurance|policy|coverage|quote|premium|deductible)\b/.test(haystack)) return 'insurance'
-  if (/\b(gym|fitness|pilates|yoga|training|workout|membership)\b/.test(haystack)) return 'gym'
-  if (/\b(flight|flights|holiday|vacation|travel|tickets|cruise|hotel)\b/.test(haystack)) return 'travel'
-  if (/\b(toyota|ford|chevrolet|honda|hyundai|kia|nissan|dealership|inventory|test drive|used cars|new cars)\b/.test(haystack)) return 'dealership'
+  if (/\b(solar|photovoltaic|battery storage|renewable energy|energy bill|ev charger)\b/.test(haystack)) return 'solar'
+  if (/\b(disability|social security|ssi|ssdi|disability benefits|disability claim|disability appeal)\b/.test(haystack)) return 'disability'
+
+  // Insurance: require an unambiguous insurance noun. "coverage/quote/premium/deductible"
+  // alone are too generic — they appear on dealer, gym, and travel pages.
+  if (/\b(insurance agency|insurance agent|insurance broker|auto insurance|home insurance|life insurance|health insurance|insurance policy|insurance quote|insurance coverage|insurance premium|homeowners insurance|renters insurance|umbrella policy)\b/.test(haystack)) return 'insurance'
+
+  if (/\b(gym|fitness|pilates|yoga|crossfit|workout|gym membership|fitness membership|personal training)\b/.test(haystack)) return 'gym'
+  if (/\b(flight|flights|holiday package|vacation package|cruise|hotel booking|travel agency|airfare)\b/.test(haystack)) return 'travel'
   return 'professional'
 }

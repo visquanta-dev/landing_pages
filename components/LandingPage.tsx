@@ -3,6 +3,28 @@
 import { useState, useEffect } from 'react'
 import type { Dealership } from '@/lib/supabase'
 import { businessTypeLabel, defaultServicesForBusinessType, isCcwBusiness, isServiceBusiness } from '@/lib/site-niche'
+import AgeGate from '@/components/AgeGate'
+
+const CCW_MINIMUM_AGE = 21
+
+function calculateAge(month: string, day: string, year: string) {
+  const m = Number(month)
+  const d = Number(day)
+  const y = Number(year)
+  if (!m || !d || !y || y < 1900 || m < 1 || m > 12 || d < 1 || d > 31) return null
+
+  const birth = new Date(y, m - 1, d)
+  if (birth.getFullYear() !== y || birth.getMonth() !== m - 1 || birth.getDate() !== d) return null
+
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const monthDiff = today.getMonth() - birth.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--
+  }
+
+  return age
+}
 
 export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
   const [page, setPage] = useState<'main' | 'privacy' | 'terms'>('main')
@@ -29,8 +51,28 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (isCcw) {
+      const monthInput = e.currentTarget.elements.namedItem('date_of_birth_month') as HTMLInputElement | null
+      const dayInput = e.currentTarget.elements.namedItem('date_of_birth_day') as HTMLInputElement | null
+      const yearInput = e.currentTarget.elements.namedItem('date_of_birth_year') as HTMLInputElement | null
+      const age = calculateAge(monthInput?.value || '', dayInput?.value || '', yearInput?.value || '')
+      if (!monthInput || !dayInput || !yearInput || age === null) {
+        yearInput?.setCustomValidity('Enter a valid date of birth.')
+        yearInput?.reportValidity()
+        return
+      }
+
+      if (age < CCW_MINIMUM_AGE) {
+        yearInput.setCustomValidity('You must be at least 21 years old to submit this form.')
+        yearInput.reportValidity()
+        return
+      }
+
+      yearInput.setCustomValidity('')
+    }
+
     setSubmitting(true)
     setTimeout(() => { setSubmitting(false); setShowModal(true) }, 1500)
   }
@@ -72,7 +114,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
       : 'By checking this optional SMS consent box and submitting this form, you agree to receive recurring customer care text messages from this business, including appointment confirmations, booking confirmations, reminders, rescheduling updates, missed appointment follow-ups, and account-related service notifications. Message frequency varies based on your requests and appointments. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. We will not share your SMS opt-in or consent status with third parties for purposes unrelated to providing these messaging services.')
   const smsCheckboxLabel =
     d.sms_checkbox_label ||
-    `Optional: I agree to receive recurring customer care text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''} at the phone number provided. Message frequency varies. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Checking this box is not required to submit this form.`
+    `I agree to receive recurring customer care text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''} at the phone number provided. Message frequency varies. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Checking this box is not required to submit this form.`
 
   const defaultGymServices = [
     { name: 'Group Fitness', icon: '\u{1F3CB}\uFE0F', desc: 'High-energy classes including HIIT, cycling, yoga, and more.' },
@@ -116,6 +158,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
 
   return (
     <>
+      {isCcw && <AgeGate brandColor={c} />}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
         :root{--c:${c};--cd:${cDark};--cg:${c}40}
@@ -492,6 +535,40 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Additional Details</label>
                   <textarea className="lp-input" placeholder={isGym ? "Tell us more — fitness goals, class preferences, experience level, etc." : isInsurance ? "Tell us more — current coverage, vehicles/property to insure, budget, etc." : isCustomService ? "Tell us more about what you need, your preferred timing, and any useful context..." : "Tell us more — vehicle of interest, type of service, etc."} style={{ minHeight: 100, resize: 'vertical' }} />
                 </div>
+
+                {/* Birthdate Verification (CCW only) */}
+                {isCcw && (
+                  <div style={{ marginTop: 28, padding: 24, border: `1px solid ${c}40`, borderRadius: 12, background: `${c}0a` }}>
+                    <p style={{ fontSize: 15, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.12em', color: '#E8E8E8', marginBottom: 14 }}>Birthdate Verification</p>
+                    <div>
+                      <label id="form-birthdate-label" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Date of Birth</label>
+                      <div aria-labelledby="form-birthdate-label" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr', gap: 10 }}>
+                        {[
+                          { label: 'MM', name: 'date_of_birth_month', maxLength: 2 },
+                          { label: 'DD', name: 'date_of_birth_day', maxLength: 2 },
+                          { label: 'YYYY', name: 'date_of_birth_year', maxLength: 4 },
+                        ].map((field) => (
+                          <input
+                            key={field.name}
+                            name={field.name}
+                            className="lp-input"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            placeholder={field.label}
+                            maxLength={field.maxLength}
+                            required
+                            onInput={(e) => {
+                              const input = e.currentTarget
+                              input.value = input.value.replace(/\D/g, '').slice(0, field.maxLength)
+                              input.setCustomValidity('')
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <p style={{ fontSize: 13, lineHeight: 1.6, color: '#999', marginTop: 10 }}>Required for concealed carry permit assistance. You must be at least 21 years old to submit this form.</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* SMS Consent */}
                 <div style={{ marginTop: 28, padding: 24, border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, background: 'rgba(255,255,255,0.015)' }}>
