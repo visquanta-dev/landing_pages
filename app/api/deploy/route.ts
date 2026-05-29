@@ -109,7 +109,12 @@ async function upsertCloudflareRecord(record: {
   const records = await listCloudflareRecords(record.type, record.name)
   const normalizedContent = normalizeDnsValue(record.content)
   const exact = records.find((r: any) => normalizeDnsValue(r.content) === normalizedContent)
-  const existing = exact || (record.type === 'CNAME' ? records[0] : null)
+  // True no-op: the desired record already exists, so re-running (e.g. on every
+  // status poll) makes zero Cloudflare writes.
+  if (exact) {
+    return { id: exact.id, type: record.type, name: record.name, content: record.content, action: 'unchanged' }
+  }
+  const existing = record.type === 'CNAME' ? records[0] : null
   const payload = {
     type: record.type,
     name: record.name,
@@ -154,10 +159,14 @@ async function configureCloudflareForVercelDomain(projectId: string, domain: str
 
   try {
     const config = await getVercelDomainConfig(projectId, domain)
-    const recommendedCname = config?.recommendedCNAME
-      ?.slice()
-      ?.sort((a: any, b: any) => (a.rank || 999) - (b.rank || 999))
-      ?.[0]?.value || 'cname.vercel-dns.com'
+    const ranked = (config?.recommendedCNAME || [])
+      .slice()
+      .sort((a: any, b: any) => (a.rank || 999) - (b.rank || 999))
+    // Prefer Vercel's dedicated per-project target (e.g. xxxx.vercel-dns-016.com)
+    // over the shared generic cname.vercel-dns.com. The generic resolves fine but
+    // Vercel flags it as "DNS Change Recommended"; the dedicated one clears it.
+    const dedicated = ranked.find((r: any) => /\.vercel-dns-\d+\.com\.?$/i.test(r?.value || ''))
+    const recommendedCname = dedicated?.value || ranked[0]?.value || 'cname.vercel-dns.com'
 
     const records = [
       await upsertCloudflareRecord({
@@ -403,11 +412,12 @@ export async function GET(req: NextRequest) {
     let dnsStatus = null
     if (domRes.ok) {
       domainInfo = await domRes.json()
-      if (!domainInfo.verified) {
-        dnsStatus = await configureCloudflareForVercelDomain(project.id, domain, domainInfo)
-        const refreshed = await getVercelProjectDomain(project.id, domain)
-        if (refreshed) domainInfo = refreshed
-      }
+      // Always re-run DNS config (idempotent — no Cloudflare writes when records
+      // already match). This lets an already-verified domain still be upgraded
+      // from the generic cname.vercel-dns.com to the preferred dedicated target.
+      dnsStatus = await configureCloudflareForVercelDomain(project.id, domain, domainInfo)
+      const refreshed = await getVercelProjectDomain(project.id, domain)
+      if (refreshed) domainInfo = refreshed
     }
 
     // Get latest deployment
