@@ -40,14 +40,19 @@ function campaignId(data: any) {
   return data?.campaignId || data?.tcrCampaignId || data?.id || null
 }
 
-async function listCampaignBuilderCampaigns() {
-  const res = await telnyxGet('/10dlc/campaignBuilder?page%5Bsize%5D=100')
+// Campaigns are listed at /10dlc/campaign. NOTE: /10dlc/campaignBuilder is
+// POST-only (it CREATES a campaign) — GETting it returns Telnyx error 10005
+// "Resource not found", which previously caused the pre-create dedup check to
+// throw and the bulk-create flow to report 10005 without ever creating anything.
+async function listAllCampaigns() {
+  const res = await telnyxGet('/10dlc/campaign?page=1&recordsPerPage=500')
   return telnyxRecords(res)
 }
 
 async function listCampaignsForBrand(brandId: string) {
-  const builderCampaigns = await listCampaignBuilderCampaigns()
-  return builderCampaigns.filter(c => c.brandId === brandId)
+  if (!brandId) return []
+  const res = await telnyxGet(`/10dlc/campaign?brandId=${encodeURIComponent(brandId)}&recordsPerPage=50`)
+  return telnyxRecords(res).filter(c => !c.brandId || c.brandId === brandId)
 }
 
 // GET — fetch brands + dealership data merged
@@ -69,7 +74,7 @@ export async function GET(req: NextRequest) {
       let campaignCounts = new Map<string, number>()
       let latestCampaignByBrand = new Map<string, any>()
       try {
-        const campaigns = await listCampaignBuilderCampaigns()
+        const campaigns = await listAllCampaigns()
         for (const campaign of campaigns) {
           if (!campaign.brandId) continue
           campaignCounts.set(campaign.brandId, (campaignCounts.get(campaign.brandId) || 0) + 1)
@@ -127,7 +132,7 @@ export async function GET(req: NextRequest) {
       const brandId = req.nextUrl.searchParams.get('brandId')
       if (!brandId) return NextResponse.json({ error: 'brandId required' }, { status: 400 })
       const records = await listCampaignsForBrand(brandId)
-      return NextResponse.json({ page: 1, records, totalRecords: records.length, source: 'campaignBuilder' })
+      return NextResponse.json({ page: 1, records, totalRecords: records.length, source: 'campaign' })
     }
 
     return NextResponse.json({ error: 'action param required (brands, campaigns)' }, { status: 400 })
