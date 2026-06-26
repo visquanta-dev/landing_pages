@@ -76,7 +76,7 @@ export function buildCampaign(brand: TelnyxCampaignBrand): TelnyxCampaignPayload
     ? `${brand.subdomain}.visquanta.com`
     : firstValue(hostname(brand.domain), hostname(brand.website), 'visquanta.com')
   const brandLabel = dba && dba !== legalName ? `${legalName} (DBA ${dba})` : legalName
-  const bookingUrl = `https://${domain}/#booking`
+  const bookingUrl = `https://${domain}`
   const privacyUrl = `https://${domain}/privacy-policy`
   const termsUrl = `https://${domain}/terms-and-conditions`
   const helpContact = firstValue(brand.phone, brand.contactEmail, brand.email, privacyUrl)
