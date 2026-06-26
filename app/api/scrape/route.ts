@@ -311,34 +311,159 @@ async function fetchViaAltProxy(url: string, startedAt: number): Promise<string 
   }
 }
 
+const BRAND_ALIASES: Array<{ match: string; label: string }> = [
+  { match: 'Mercedes-Benz', label: 'Mercedes-Benz' },
+  { match: 'Mercedes', label: 'Mercedes-Benz' },
+  { match: 'Land Rover', label: 'Land Rover' },
+  { match: 'Alfa Romeo', label: 'Alfa Romeo' },
+  { match: 'Volkswagen', label: 'Volkswagen' },
+  { match: 'Toyota', label: 'Toyota' },
+  { match: 'Ford', label: 'Ford' },
+  { match: 'Chevrolet', label: 'Chevrolet' },
+  { match: 'Chevy', label: 'Chevrolet' },
+  { match: 'Honda', label: 'Honda' },
+  { match: 'Hyundai', label: 'Hyundai' },
+  { match: 'Kia', label: 'Kia' },
+  { match: 'Nissan', label: 'Nissan' },
+  { match: 'Genesis', label: 'Genesis' },
+  { match: 'BMW', label: 'BMW' },
+  { match: 'Audi', label: 'Audi' },
+  { match: 'Lexus', label: 'Lexus' },
+  { match: 'Jeep', label: 'Jeep' },
+  { match: 'Ram', label: 'Ram' },
+  { match: 'Dodge', label: 'Dodge' },
+  { match: 'Subaru', label: 'Subaru' },
+  { match: 'Mazda', label: 'Mazda' },
+  { match: 'Chrysler', label: 'Chrysler' },
+  { match: 'Buick', label: 'Buick' },
+  { match: 'GMC', label: 'GMC' },
+  { match: 'Cadillac', label: 'Cadillac' },
+  { match: 'Lincoln', label: 'Lincoln' },
+  { match: 'Acura', label: 'Acura' },
+  { match: 'Infiniti', label: 'Infiniti' },
+  { match: 'Volvo', label: 'Volvo' },
+  { match: 'Porsche', label: 'Porsche' },
+  { match: 'Jaguar', label: 'Jaguar' },
+  { match: 'Mitsubishi', label: 'Mitsubishi' },
+  { match: 'MINI', label: 'MINI' },
+  { match: 'Fiat', label: 'Fiat' },
+]
+
 function extractDealerName(html: string): string {
+  const candidates: string[] = []
   const ogSite = matchOne(html, /<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i)
-  if (ogSite) return cleanText(ogSite)
+  if (ogSite) candidates.push(ogSite)
+
   const title = matchOne(html, /<title[^>]*>([^<]+)<\/title>/i)
-  if (title) {
-    const name = title.split(/\s*[|\-\u2013:]\s*/)[0].trim()
-    if (name.length > 2 && name.length < 80) return cleanText(name)
+  if (title) candidates.push(...titleNameCandidates(title))
+
+  const imgTags = html.match(/<img[^>]*>/gi) || []
+  for (const tag of imgTags) {
+    const alt = matchOne(tag, /alt=["']([^"']+)["']/i)
+    if (!alt) continue
+    if (/(logo|motors|auto|cars|dealer|chrysler|dodge|jeep|ram|toyota|ford|chevrolet|honda|hyundai|kia|nissan|volkswagen|lexus|bmw|audi)/i.test(alt)) {
+      candidates.push(alt)
+    }
+  }
+
+  const headingMatches = html.match(/<h[1-3][^>]*>[\s\S]*?<\/h[1-3]>/gi) || []
+  for (const heading of headingMatches) {
+    candidates.push(stripTags(heading))
+  }
+
+  const visibleText = stripTags(html)
+  const welcomeName = matchOne(visibleText, /\bWelcome to\s+([A-Z][A-Za-z0-9&'\s.,-]{3,90}?)(?:\s+located\b|\s+near\b|[\r\n]|$)/i)
+  if (welcomeName) candidates.push(welcomeName)
+  const copyrightName = matchOne(visibleText, /\u00A9\s*\d{4}\s+([A-Z][A-Za-z0-9&'\s.,-]{3,90}?)(?:\.| All Rights|$)/i)
+  if (copyrightName) candidates.push(copyrightName)
+
+  for (const candidate of candidates) {
+    const name = cleanDealerNameCandidate(candidate)
+    if (isUsefulDealerName(name)) return name
   }
   return ''
 }
 
+function titleNameCandidates(title: string): string[] {
+  const cleaned = cleanText(title)
+  const parts = cleaned.split(/\s*(?:\||\u2013|\s-\s)\s*/).map(part => part.trim()).filter(Boolean)
+  if (parts.length <= 1) return [cleaned]
+  return [...parts].reverse().concat(cleaned)
+}
+
+function cleanDealerNameCandidate(candidate: string): string {
+  return cleanText(candidate)
+    .replace(/^Welcome to\s+/i, '')
+    .replace(/\s+Logo$/i, '')
+    .replace(/\s+(?:New|Pre-Owned|Used)\s+Vehicles?$/i, '')
+    .replace(/\s+Inventory\s+Under.*$/i, '')
+    .replace(/\s+Value\s+Your\s+Trade$/i, '')
+    .replace(/\s+Get\s+Pre-?Approved$/i, '')
+    .replace(/\s+located\s+in\s+.*$/i, '')
+    .replace(/\s+near\s+.*$/i, '')
+    .replace(/\s+New\s+&?\s*Used\s+Cars.*$/i, '')
+    .replace(/\s+New\s+and\s+Used\s+Cars.*$/i, '')
+    .replace(/\s+Dealer\s+.*$/i, '')
+    .replace(/\s+\|\s+.*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function isUsefulDealerName(name: string): boolean {
+  const normalized = name.trim().toLowerCase()
+  if (name.length < 4 || name.length > 80) return false
+  if (!/[a-z]/i.test(name)) return false
+  if (STUB_TITLE_NAMES.has(normalized)) return false
+  if (/^(home|inventory|search|smart search|schedule service|contact us)$/i.test(name)) return false
+  if (/^(chrysler|dodge|jeep|ram|fiat|toyota|ford|chevrolet|honda|hyundai|kia|nissan|volkswagen|lexus|bmw|audi)$/i.test(name)) return false
+  return true
+}
+
 function extractBrand(html: string): string {
-  const brands = ['Toyota', 'Ford', 'Chevrolet', 'Chevy', 'Honda', 'Hyundai', 'Kia', 'Nissan', 'Volkswagen', 'VW', 'Genesis', 'BMW', 'Mercedes-Benz', 'Mercedes', 'Audi', 'Lexus', 'Jeep', 'Ram', 'Dodge', 'Subaru', 'Mazda', 'Chrysler', 'Buick', 'GMC', 'Cadillac', 'Lincoln', 'Acura', 'Infiniti', 'Volvo', 'Porsche', 'Land Rover', 'Jaguar', 'Mitsubishi', 'MINI', 'Fiat', 'Alfa Romeo']
   const title = matchOne(html, /<title[^>]*>([^<]+)<\/title>/i) || ''
   const ogTitle = matchOne(html, /<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) || ''
-  const combined = `${title} ${ogTitle}`.toLowerCase()
-  for (const brand of brands) {
-    if (combined.includes(brand.toLowerCase())) {
-      if (brand === 'Chevy') return 'Chevrolet'
-      if (brand === 'VW') return 'Volkswagen'
-      if (brand === 'Mercedes') return 'Mercedes-Benz'
-      return brand
-    }
+  const visibleText = stripTags(html).slice(0, 50000)
+  const combined = `${title} ${ogTitle} ${visibleText}`
+  let best: { index: number; label: string } | null = null
+  for (const brand of BRAND_ALIASES) {
+    const match = new RegExp(`\\b${escapeRegex(brand.match)}\\b`, 'i').exec(combined)
+    if (!match || match.index < 0) continue
+    if (!best || match.index < best.index) best = { index: match.index, label: brand.label }
   }
-  return 'Other'
+  return best?.label || 'Other'
 }
 
 function extractLogo(html: string, baseUrl: string): string {
+  const dealerName = extractDealerName(html)
+  const dealerTokens = dealerName
+    .toLowerCase()
+    .split(/\W+/)
+    .filter(token => token.length > 3 && !/^(chrysler|dodge|jeep|ram|fiat|toyota|ford|chevrolet|honda|hyundai|kia|nissan|volkswagen|lexus|bmw|audi|dealer|motors|auto|cars)$/.test(token))
+  const imgTags = html.match(/<img[^>]*>/gi) || []
+  const logoCandidates: Array<{ src: string; score: number }> = []
+  for (const tag of imgTags) {
+    const haystack = tag.toLowerCase()
+    if (!/(logo|brand|dealer)/.test(haystack)) continue
+    const src = extractImageSourceFromTag(tag, baseUrl)
+    if (!src) continue
+    const alt = matchOne(tag, /alt=["']([^"']+)["']/i) || ''
+    const srcPath = urlPathname(src)
+    const scoreHaystack = `${alt} ${srcPath}`.toLowerCase()
+    let score = 0
+    if (haystack.includes('logo')) score += 10
+    if (haystack.includes('brand')) score += 3
+    if (/(?:^|\s|["'])dealer_logo(?:\s|["'])/.test(haystack)) score += 40
+    if (dealerName && alt.toLowerCase().includes(dealerName.toLowerCase())) score += 40
+    for (const token of dealerTokens) {
+      if (scoreHaystack.includes(token)) score += 20
+    }
+    if (BRAND_ALIASES.some(brand => alt.toLowerCase() === brand.match.toLowerCase())) score -= 30
+    if (/customer[\s_-]*first|alt_content|favicon|testimonial|star|search_lbl|delete\.png|logo_(?:dodge|ram|jeep|fiat|chrysler)/.test(haystack)) score -= 50
+    if (score > 0) logoCandidates.push({ src, score })
+  }
+  logoCandidates.sort((a, b) => b.score - a.score)
+  if (logoCandidates[0]) return logoCandidates[0].src
+
   const patterns = [
     /<(?:img|source)[^>]*class=["'][^"']*logo[^"']*["'][^>]*(?:src|srcset)=["']([^"'\s]+)["']/gi,
     /<img[^>]*alt=["'][^"']*logo[^"']*["'][^>]*src=["']([^"'\s]+)["']/gi,
@@ -350,12 +475,37 @@ function extractLogo(html: string, baseUrl: string): string {
   for (const pattern of patterns) {
     const match = pattern.exec(html)
     if (match?.[1]) {
-      const src = resolveUrl(match[1], baseUrl)
-      if (src && !src.includes('pixel') && !src.includes('tracking') && !src.includes('1x1')) return src
+      const src = resolveUrl(firstSrcFromSrcset(match[1]), baseUrl)
+      if (src && isUsableLogo(src)) return src
     }
     pattern.lastIndex = 0
   }
   return ''
+}
+
+function extractImageSourceFromTag(tag: string, baseUrl: string): string {
+  const src =
+    matchOne(tag, /(?:src|data-src|data-lazy-src|data-original)=["']([^"'\s]+)["']/i) ||
+    firstSrcFromSrcset(matchOne(tag, /(?:srcset|data-srcset)=["']([^"']+)["']/i) || '')
+  const resolved = resolveUrl(src || '', baseUrl)
+  return resolved && isUsableLogo(resolved) ? resolved : ''
+}
+
+function firstSrcFromSrcset(srcset: string): string {
+  return srcset.split(',')[0]?.trim().split(/\s+/)[0] || ''
+}
+
+function isUsableLogo(src: string): boolean {
+  const lower = src.toLowerCase()
+  return Boolean(src && !lower.includes('pixel') && !lower.includes('tracking') && !lower.includes('1x1') && !lower.includes('spacer'))
+}
+
+function urlPathname(src: string): string {
+  try {
+    return new URL(src).pathname
+  } catch {
+    return src
+  }
 }
 
 function extractPhones(html: string): string {
@@ -404,7 +554,7 @@ function extractAddress(html: string): { line1: string; city: string; state: str
   // address is split across tags — "240 Service Rd" and "Oklahoma City, OK 73149"
   // sit in separate elements, so a raw-HTML match never fires. Stripping tags
   // makes the line contiguous. Non-greedy street name keeps line1 tight.
-  const addrRegex = /(\d+\s+[A-Z][a-zA-Z\s.]+?(?:St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Way|Ln|Lane|Ct|Court|Pkwy|Parkway|Hwy|Highway)[.,]*)\s*(?:,?\s*)([A-Z][a-zA-Z\s]+),?\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)/
+  const addrRegex = /(\d+\s+[A-Z][a-zA-Z\s.]+?(?:St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Way|Ln|Lane|Ct|Court|Pkwy|Parkway|Hwy|Highway)[.,]*)\s*(?:,?\s*)([A-Z][a-zA-Z\s]+),?\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?|[A-Z]\d[A-Z]\s?\d[A-Z]\d)/
   const addrMatch = stripTags(html).match(addrRegex)
   if (addrMatch) {
     return { line1: addrMatch[1].trim().replace(/[.,]+$/, ''), city: addrMatch[2].trim(), state: addrMatch[3].trim(), zip: addrMatch[4].trim(), full: addrMatch[0].trim() }
@@ -510,6 +660,10 @@ function extractMeta(html: string, name: string): string {
 function matchOne(html: string, regex: RegExp): string | null {
   const match = html.match(regex)
   return match?.[1] || null
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function resolveUrl(src: string, baseUrl: string): string {

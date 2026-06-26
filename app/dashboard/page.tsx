@@ -25,7 +25,8 @@ export default function DashboardPage() {
   const filtered = typeFilter === 'all'
     ? dealerships
     : dealerships.filter(d => typeFilter === 'ccw' ? isCcwBusiness(d.business_type) : normalizeBusinessType(d.business_type) === normalizeBusinessType(typeFilter))
-  const customTypes = Array.from(new Set(dealerships.map(d => d.business_type || 'dealership'))).filter(t => !['dealership', 'gym', 'insurance'].includes(t) && !isCcwBusiness(t))
+  const knownBusinessTypes = new Set(BUSINESS_TYPE_OPTIONS.map(option => normalizeBusinessType(option.value)))
+  const customTypes = Array.from(new Set(dealerships.map(d => d.business_type || 'dealership'))).filter(t => !knownBusinessTypes.has(normalizeBusinessType(t)) && !isCcwBusiness(t))
 
   useEffect(() => { fetchDealerships() }, [])
 
@@ -175,6 +176,7 @@ export default function DashboardPage() {
           >
             <option value="all" style={{ background: '#111' }}>All Sites</option>
             <option value="dealership" style={{ background: '#111' }}>Dealerships</option>
+            <option value="trade-in-signals" style={{ background: '#111' }}>Trade-In Signals</option>
             <option value="gym" style={{ background: '#111' }}>Gyms</option>
             <option value="insurance" style={{ background: '#111' }}>Insurance</option>
             <option value="ccw" style={{ background: '#111' }}>CCW / Permit Assistance</option>

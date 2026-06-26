@@ -5,6 +5,7 @@ export type ServiceItem = {
 
 export const BUSINESS_TYPE_OPTIONS = [
   { value: 'dealership', label: 'Dealership' },
+  { value: 'trade-in-signals', label: 'Trade-In Signals' },
   { value: 'gym', label: 'Gym / Fitness Center' },
   { value: 'insurance', label: 'Insurance Agency' },
   { value: 'ccw', label: 'CCW / Permit Assistance' },
@@ -48,6 +49,11 @@ export function isCcwBusiness(value?: string | null) {
   return type === 'ccw' || type.includes('concealed-carry') || type.includes('permit-assistance')
 }
 
+export function isTradeInSignalsBusiness(value?: string | null) {
+  const type = normalizeBusinessType(value)
+  return type === 'trade-in-signals' || type === 'trade-signals' || type === 'vehicle-equity-signals'
+}
+
 export function isServiceBusiness(value?: string | null) {
   const type = normalizeBusinessType(value)
   return type !== 'dealership' && type !== 'insurance'
@@ -60,6 +66,13 @@ export function defaultServicesForBusinessType(value?: string | null): ServiceIt
       { name: 'Permit Eligibility Pre-Check', description: 'Answer a few questions so the team can understand your application needs and next steps.' },
       { name: 'Application Assistance', description: 'Get guided support with the concealed carry permit application process and required details.' },
       { name: 'Firearms Safety Course Access', description: 'Proceed to firearms safety training resources and application support after pre-qualification.' },
+    ]
+  }
+  if (isTradeInSignalsBusiness(type)) {
+    return [
+      { name: 'Trade-In Valuation', description: 'Request an estimated vehicle value and the next step for review.' },
+      { name: 'Equity Review', description: 'Check whether your current vehicle may have usable equity or upgrade potential.' },
+      { name: 'Upgrade Opportunity', description: 'Share your vehicle details so the team can identify relevant trade or upgrade options.' },
     ]
   }
   if (type.includes('solar') || type.includes('energy')) {
@@ -92,6 +105,8 @@ export function defaultServicesForBusinessType(value?: string | null): ServiceIt
 
 export function inferBusinessTypeFromText(text: string) {
   const haystack = text.toLowerCase()
+
+  if (/\b(trade[-\s]?in signals?|trade signals?|vehicle equity signals?|equity signals?)\b/.test(haystack)) return 'trade-in-signals'
 
   // Dealership is checked first because car-dealer pages routinely use generic
   // insurance-adjacent words ("warranty coverage", "request a quote", "premium trim")

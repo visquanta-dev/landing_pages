@@ -34,6 +34,19 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
   
+  if (error && error.code === '23505' && body?.subdomain) {
+    const { id, created_at, updated_at, ...updates } = body
+    const { data: existing, error: updateError } = await supabase
+      .from('dealerships')
+      .update(updates)
+      .eq('subdomain', body.subdomain)
+      .select()
+      .single()
+
+    if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+    return NextResponse.json(existing)
+  }
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }

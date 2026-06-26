@@ -2,14 +2,19 @@
  * Generate all SMS/legal copy from just two fields.
  * The copy is ALWAYS the same - only the business names change.
  */
+import { isTradeInSignalsBusiness } from './site-niche'
+
 export function generateSmsTemplates(legalEntityName: string, dbaName: string, phoneHelp?: string, email?: string, businessType?: string) {
   const legal = legalEntityName
   const dba = dbaName
   const brandLabel = `${legal}${dba && dba !== legal ? ` (DBA ${dba})` : ''}`
   const normalizedType = (businessType || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
   const isCcw = normalizedType === 'ccw' || normalizedType.includes('concealed-carry') || normalizedType.includes('permit-assistance')
+  const isTradeInSignals = isTradeInSignalsBusiness(normalizedType)
   const messageTypes = isCcw
     ? 'permit application assistance updates, qualification reminders, training-course access notifications, appointment confirmations, and account-related service notifications'
+    : isTradeInSignals
+    ? 'trade-in valuation updates, equity review notifications, appointment confirmations, reminders, rescheduling updates, missed appointment follow-ups, and account-related service notifications'
     : 'appointment confirmations, booking confirmations, reminders, rescheduling updates, missed appointment follow-ups, and account-related service notifications'
 
   return {
