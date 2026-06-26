@@ -176,7 +176,7 @@ export default function DashboardPage() {
           >
             <option value="all" style={{ background: '#111' }}>All Sites</option>
             <option value="dealership" style={{ background: '#111' }}>Dealerships</option>
-            <option value="trade-in-signals" style={{ background: '#111' }}>Trade-In Signals</option>
+            <option value="forex-trading-signals" style={{ background: '#111' }}>Forex Trading Signals</option>
             <option value="gym" style={{ background: '#111' }}>Gyms</option>
             <option value="insurance" style={{ background: '#111' }}>Insurance</option>
             <option value="ccw" style={{ background: '#111' }}>CCW / Permit Assistance</option>

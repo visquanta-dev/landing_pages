@@ -20,7 +20,7 @@ const DEFAULT_HOURS: Record<string, string> = {
 const BRANDS = ['Toyota','Ford','Chevrolet','Honda','Hyundai','Kia','Nissan','Volkswagen','Genesis','BMW','Mercedes-Benz','Audi','Lexus','Jeep','Ram','Dodge','Subaru','Mazda','Other']
 const GYM_BRANDS = ['Gym','Fitness Center','Yoga Studio','Pilates Studio','CrossFit Box','Other']
 const INSURANCE_BRANDS = ['State Farm','Allstate','GEICO','Progressive','Farmers','Liberty Mutual','Nationwide','USAA','American Family','Erie Insurance','Independent Agency','Other']
-const CUSTOM_BRANDS = ['Trade-In Signals','CCW / Permit Assistance','Solar Energy','Disability Services','Travel / Tickets','Professional Services','Home Services','Other']
+const CUSTOM_BRANDS = ['Forex Trading Signals','CCW / Permit Assistance','Solar Energy','Disability Services','Travel / Tickets','Professional Services','Home Services','Other']
 const VERIFY_POLL_SECONDS = 5
 const VERIFY_MAX_ATTEMPTS = 24
 
@@ -503,7 +503,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
                   list="business-type-options"
                   value={form.business_type}
                   onChange={e => handleBusinessTypeChange(e.target.value)}
-                  placeholder="dealership, trade-in-signals, solar, disability..."
+                  placeholder="dealership, forex-trading-signals, solar, disability..."
                 />
                 <datalist id="business-type-options">
                   {BUSINESS_TYPE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}

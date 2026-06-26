@@ -5,7 +5,7 @@ export type ServiceItem = {
 
 export const BUSINESS_TYPE_OPTIONS = [
   { value: 'dealership', label: 'Dealership' },
-  { value: 'trade-in-signals', label: 'Trade-In Signals' },
+  { value: 'forex-trading-signals', label: 'Forex Trading Signals' },
   { value: 'gym', label: 'Gym / Fitness Center' },
   { value: 'insurance', label: 'Insurance Agency' },
   { value: 'ccw', label: 'CCW / Permit Assistance' },
@@ -49,9 +49,9 @@ export function isCcwBusiness(value?: string | null) {
   return type === 'ccw' || type.includes('concealed-carry') || type.includes('permit-assistance')
 }
 
-export function isTradeInSignalsBusiness(value?: string | null) {
+export function isForexTradingSignalsBusiness(value?: string | null) {
   const type = normalizeBusinessType(value)
-  return type === 'trade-in-signals' || type === 'trade-signals' || type === 'vehicle-equity-signals'
+  return type === 'forex-trading-signals' || type === 'forex-signals' || type === 'trading-signals'
 }
 
 export function isServiceBusiness(value?: string | null) {
@@ -68,11 +68,11 @@ export function defaultServicesForBusinessType(value?: string | null): ServiceIt
       { name: 'Firearms Safety Course Access', description: 'Proceed to firearms safety training resources and application support after pre-qualification.' },
     ]
   }
-  if (isTradeInSignalsBusiness(type)) {
+  if (isForexTradingSignalsBusiness(type)) {
     return [
-      { name: 'Trade-In Valuation', description: 'Request an estimated vehicle value and the next step for review.' },
-      { name: 'Equity Review', description: 'Check whether your current vehicle may have usable equity or upgrade potential.' },
-      { name: 'Upgrade Opportunity', description: 'Share your vehicle details so the team can identify relevant trade or upgrade options.' },
+      { name: 'Forex Signal Alerts', description: 'Receive market signal alerts and updates for selected forex pairs.' },
+      { name: 'Market Analysis', description: 'Review forex market context, trade setups, and timing considerations.' },
+      { name: 'Trading Support', description: 'Get help with account access, signal notifications, and service questions.' },
     ]
   }
   if (type.includes('solar') || type.includes('energy')) {
@@ -106,7 +106,7 @@ export function defaultServicesForBusinessType(value?: string | null): ServiceIt
 export function inferBusinessTypeFromText(text: string) {
   const haystack = text.toLowerCase()
 
-  if (/\b(trade[-\s]?in signals?|trade signals?|vehicle equity signals?|equity signals?)\b/.test(haystack)) return 'trade-in-signals'
+  if (/\b(forex trading signals?|forex signals?|trading signals?|fx signals?|currency trading signals?)\b/.test(haystack)) return 'forex-trading-signals'
 
   // Dealership is checked first because car-dealer pages routinely use generic
   // insurance-adjacent words ("warranty coverage", "request a quote", "premium trim")
