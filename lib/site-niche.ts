@@ -5,7 +5,7 @@ export type ServiceItem = {
 
 export const BUSINESS_TYPE_OPTIONS = [
   { value: 'dealership', label: 'Dealership' },
-  { value: 'forex-trading-signals', label: 'Forex Trading Signals' },
+  { value: 'trading-education', label: 'Trading Education' },
   { value: 'gym', label: 'Gym / Fitness Center' },
   { value: 'insurance', label: 'Insurance Agency' },
   { value: 'ccw', label: 'CCW / Permit Assistance' },
@@ -49,9 +49,9 @@ export function isCcwBusiness(value?: string | null) {
   return type === 'ccw' || type.includes('concealed-carry') || type.includes('permit-assistance')
 }
 
-export function isForexTradingSignalsBusiness(value?: string | null) {
+export function isTradingEducationBusiness(value?: string | null) {
   const type = normalizeBusinessType(value)
-  return type === 'forex-trading-signals' || type === 'forex-signals' || type === 'trading-signals'
+  return type === 'trading-education' || type === 'trading-course' || type === 'trading-academy' || type === 'forex-education'
 }
 
 export function isServiceBusiness(value?: string | null) {
@@ -68,11 +68,11 @@ export function defaultServicesForBusinessType(value?: string | null): ServiceIt
       { name: 'Firearms Safety Course Access', description: 'Proceed to firearms safety training resources and application support after pre-qualification.' },
     ]
   }
-  if (isForexTradingSignalsBusiness(type)) {
+  if (isTradingEducationBusiness(type)) {
     return [
-      { name: 'Forex Signal Alerts', description: 'Receive market signal alerts and updates for selected forex pairs.' },
-      { name: 'Market Analysis', description: 'Review forex market context, trade setups, and timing considerations.' },
-      { name: 'Trading Support', description: 'Get help with account access, signal notifications, and service questions.' },
+      { name: 'Trading Education', description: 'Access educational resources that explain trading concepts, market structure, and risk management.' },
+      { name: 'Market Walkthroughs', description: 'Review educational market walkthroughs designed to help members understand trading setups and context.' },
+      { name: 'Member Support', description: 'Get help with account access, educational content, and service questions.' },
     ]
   }
   if (type.includes('solar') || type.includes('energy')) {
@@ -106,7 +106,7 @@ export function defaultServicesForBusinessType(value?: string | null): ServiceIt
 export function inferBusinessTypeFromText(text: string) {
   const haystack = text.toLowerCase()
 
-  if (/\b(forex trading signals?|forex signals?|trading signals?|fx signals?|currency trading signals?)\b/.test(haystack)) return 'forex-trading-signals'
+  if (/\b(trading education|trading course|trading courses|trading academy|forex education|learn to trade|market education|trading mentorship|trading training)\b/.test(haystack)) return 'trading-education'
 
   // Dealership is checked first because car-dealer pages routinely use generic
   // insurance-adjacent words ("warranty coverage", "request a quote", "premium trim")
