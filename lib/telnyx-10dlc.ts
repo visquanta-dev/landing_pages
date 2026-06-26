@@ -17,12 +17,17 @@ function isCcwBusinessType(value?: string | null) {
   return v === 'ccw' || v.includes('concealed-carry') || v.includes('permit-assistance')
 }
 
+function isTradingEducationBusinessType(value?: string | null) {
+  const v = (value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')
+  return v === 'trading-education' || v === 'trading-course' || v === 'trading-academy' || v === 'forex-education'
+}
+
 export type TelnyxCampaignPayload = {
   brandId: string
   _displayName: string
   usecase: 'LOW_VOLUME'
   subUsecases: ['CUSTOMER_CARE']
-  vertical: 'RETAIL'
+  vertical: 'RETAIL' | 'EDUCATION'
   subscriberHelp: true
   subscriberOptin: true
   subscriberOptout: true
@@ -76,6 +81,7 @@ export function buildCampaign(brand: TelnyxCampaignBrand): TelnyxCampaignPayload
   const termsUrl = `https://${domain}/terms-and-conditions`
   const helpContact = firstValue(brand.phone, brand.contactEmail, brand.email, privacyUrl)
   const isCcw = isCcwBusinessType(brand.businessType)
+  const isTradingEducation = isTradingEducationBusinessType(brand.businessType)
   const optInDisclosure = `By checking this optional SMS consent box and submitting this form, you agree to receive recurring customer care text messages from ${brandLabel}, including appointment confirmations, booking confirmations, reminders, rescheduling updates, missed appointment follow-ups, and account-related service notifications. Message frequency varies based on your requests and appointments. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. We will not share your SMS opt-in or consent status with third parties for purposes unrelated to providing these messaging services.`
   const checkboxLabel = `I agree to receive recurring customer care text messages from ${brandLabel} at the phone number provided. Message frequency varies. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Checking this box is not required to submit this form.`
   const optInConfirmation = `${dba}: You are subscribed to customer care text messages. Msg frequency varies. Msg & data rates may apply. Reply HELP for help or STOP to unsubscribe.`
@@ -88,7 +94,7 @@ export function buildCampaign(brand: TelnyxCampaignBrand): TelnyxCampaignPayload
     _displayName: dba,
     usecase: 'LOW_VOLUME',
     subUsecases: ['CUSTOMER_CARE'],
-    vertical: 'RETAIL',
+    vertical: isTradingEducation ? 'EDUCATION' : 'RETAIL',
     subscriberHelp: true,
     subscriberOptin: true,
     subscriberOptout: true,
@@ -108,10 +114,18 @@ export function buildCampaign(brand: TelnyxCampaignBrand): TelnyxCampaignPayload
     optoutKeywords: 'STOP,UNSUBSCRIBE,CANCEL,QUIT',
     optoutMessage: `${dba}: You are unsubscribed from customer care text messages. No more messages will be sent. Reply START to resubscribe.`,
     helpKeywords: 'HELP,INFO',
-    sample1: `${dba}: Hi Alex, your appointment request is confirmed for Tue, Mar 22 at 10:30 AM. Reply HELP for help or STOP to unsubscribe.`,
-    sample2: `${dba}: Reminder for Jordan: your booking is tomorrow at 11:00 AM. Reply CONFIRM to confirm, HELP for help, or STOP to unsubscribe.`,
-    sample3: `${dba}: Your appointment has been rescheduled to Thu, Jul 20 at 11:00 AM. Reply HELP for help or STOP to unsubscribe.`,
-    sample4: `${dba}: We missed you for today's appointment. Reply HELP to reschedule with our team or STOP to unsubscribe.`,
+    sample1: isTradingEducation
+      ? `${dba}: Hi Alex, your education consultation request is confirmed for Tue, Mar 22 at 10:30 AM. Reply HELP for help or STOP to unsubscribe.`
+      : `${dba}: Hi Alex, your appointment request is confirmed for Tue, Mar 22 at 10:30 AM. Reply HELP for help or STOP to unsubscribe.`,
+    sample2: isTradingEducation
+      ? `${dba}: Reminder for Jordan: your trading education booking is tomorrow at 11:00 AM. Reply CONFIRM to confirm, HELP for help, or STOP to unsubscribe.`
+      : `${dba}: Reminder for Jordan: your booking is tomorrow at 11:00 AM. Reply CONFIRM to confirm, HELP for help, or STOP to unsubscribe.`,
+    sample3: isTradingEducation
+      ? `${dba}: Your member support call has been rescheduled to Thu, Jul 20 at 11:00 AM. Reply HELP for help or STOP to unsubscribe.`
+      : `${dba}: Your appointment has been rescheduled to Thu, Jul 20 at 11:00 AM. Reply HELP for help or STOP to unsubscribe.`,
+    sample4: isTradingEducation
+      ? `${dba}: We missed you for today's education consultation. Reply HELP to reschedule with our team or STOP to unsubscribe.`
+      : `${dba}: We missed you for today's appointment. Reply HELP to reschedule with our team or STOP to unsubscribe.`,
   }
 }
 
