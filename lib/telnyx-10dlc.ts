@@ -27,7 +27,7 @@ export type TelnyxCampaignPayload = {
   _displayName: string
   usecase: 'LOW_VOLUME'
   subUsecases: ['CUSTOMER_CARE']
-  vertical: 'RETAIL' | 'EDUCATION'
+  vertical: 'RETAIL'
   subscriberHelp: true
   subscriberOptin: true
   subscriberOptout: true
@@ -94,7 +94,7 @@ export function buildCampaign(brand: TelnyxCampaignBrand): TelnyxCampaignPayload
     _displayName: dba,
     usecase: 'LOW_VOLUME',
     subUsecases: ['CUSTOMER_CARE'],
-    vertical: isTradingEducation ? 'EDUCATION' : 'RETAIL',
+    vertical: 'RETAIL',
     subscriberHelp: true,
     subscriberOptin: true,
     subscriberOptout: true,
