@@ -1,4 +1,5 @@
 import { customerCareMessageTypes, isCcwBusiness, isDryCleanerBusiness, isTradingEducationBusiness } from './site-niche'
+import { httpsUrl } from './https-url'
 
 export type TelnyxCampaignBrand = {
   brandId: string
@@ -80,9 +81,9 @@ export function buildCampaign(brand: TelnyxCampaignBrand): TelnyxCampaignPayload
     ? `${brand.subdomain}.visquanta.com`
     : firstValue(hostname(brand.domain), hostname(brand.website), 'visquanta.com')
   const brandLabel = dba && dba !== legalName ? `${legalName} (DBA ${dba})` : legalName
-  const bookingUrl = `https://${domain}`
-  const privacyUrl = `https://${domain}/privacy-policy`
-  const termsUrl = `https://${domain}/terms-and-conditions`
+  const bookingUrl = httpsUrl(domain)
+  const privacyUrl = httpsUrl(`${domain}/privacy-policy`)
+  const termsUrl = httpsUrl(`${domain}/terms-and-conditions`)
   const helpContact = firstValue(brand.phone, brand.contactEmail, brand.email, privacyUrl)
   const isCcw = isCcwBusinessType(brand.businessType)
   const isTradingEducation = isTradingEducationBusinessType(brand.businessType)

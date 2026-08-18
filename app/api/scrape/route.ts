@@ -52,6 +52,8 @@ export async function POST(req: NextRequest) {
         : [],
       meta_description: timedExtract('meta_description', () => extractMeta(html, 'description')),
       meta_title: timedExtract('meta_title', () => extractMeta(html, 'title')),
+      brand_email: timedExtract('brand_email', () => extractEmail(html)),
+      source_website: targetUrl,
       services: defaultServicesForBusinessType(businessType),
     }
 
@@ -647,6 +649,15 @@ function extractAllLargeImages(html: string, baseUrl: string): string[] {
     }
   }
   return images.slice(0, 20)
+}
+
+function extractEmail(html: string): string {
+  const fromMeta =
+    matchOne(html, /<meta[^>]*(?:property|name)=["'](?:og:email|email)["'][^>]*content=["']([^"']+)["']/i) ||
+    matchOne(html, /mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i)
+  const cleaned = cleanText(fromMeta || '')
+  if (cleaned && !/example\.com|sentry|wixpress|godaddy/i.test(cleaned)) return cleaned
+  return ''
 }
 
 function extractMeta(html: string, name: string): string {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { stripInternalCampaignFields } from '@/lib/telnyx-10dlc'
+import { buildBrandPayload, toE164 } from '@/lib/telnyx-brand'
+import { httpsUrl } from '@/lib/https-url'
 
 const TELNYX_API_KEY = process.env.TELNYX_API_KEY || ''
 const TELNYX_BASE = 'https://api.telnyx.com/v2'
@@ -90,7 +92,7 @@ export async function GET(req: NextRequest) {
         const supabase = createServiceClient()
         const { data } = await supabase
           .from('dealerships')
-          .select('dealership_name, legal_entity_name, dba_name, phone_sales, email, subdomain, address_city, address_state, business_type')
+          .select('dealership_name, legal_entity_name, dba_name, phone_sales, email, brand_email, subdomain, address_city, address_state, business_type, telnyx_brand_id, telnyx_phone_number, messaging_profile_id, ein, source_website')
         dealerships = data || []
       } catch {
         // Supabase might not be configured, continue without it
@@ -115,7 +117,10 @@ export async function GET(req: NextRequest) {
           submissionStatus: latestCampaign?.submissionStatus || null,
           // Supabase data
           phone: dealer?.phone_sales || null,
-          contactEmail: dealer?.email || null,
+          contactEmail: dealer?.brand_email || dealer?.email || null,
+          storedBrandId: dealer?.telnyx_brand_id || null,
+          telnyxPhoneNumber: dealer?.telnyx_phone_number || null,
+          messagingProfileId: dealer?.messaging_profile_id || null,
           subdomain: dealer?.subdomain || null,
           domain: dealer?.subdomain ? `${dealer.subdomain}.visquanta.com` : (brand.website ? new URL(brand.website).hostname : null),
           city: dealer?.address_city || null,
@@ -207,8 +212,138 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ results })
     }
 
+    if (action === 'create_brand') {
+      return NextResponse.json(await createBrandAndNumber(payload))
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
+  }
+}
+
+async function createBrandAndNumber(payload: any) {
+  const subdomain = String(payload.subdomain || '').trim()
+  if (!subdomain) throw new Error('subdomain required')
+
+  const supabase = createServiceClient()
+  const { data: dealer, error } = await supabase
+    .from('dealerships')
+    .select('*')
+    .eq('subdomain', subdomain)
+    .single()
+  if (error || !dealer) throw new Error(`Dealer not found: ${subdomain}`)
+
+  const existingBrandId = String(payload.existingBrandId || dealer.telnyx_brand_id || '').trim()
+  const ein = String(payload.ein || dealer.ein || '').replace(/\D/g, '')
+  let brandId = existingBrandId
+  let brandCreated = false
+
+  if (!brandId) {
+    if (ein.length !== 9) throw new Error('EIN is required to create a brand. Paste it from the onboarding survey.')
+    const brandPayload = buildBrandPayload({
+      displayName: dealer.dba_name || dealer.dealership_name,
+      companyName: dealer.legal_entity_name || dealer.dealership_name,
+      ein,
+      phone: dealer.phone_sales,
+      email: payload.brandEmail || dealer.brand_email || dealer.email,
+      website: dealer.source_website || payload.sourceWebsite,
+      street: dealer.address_line1,
+      city: dealer.address_city,
+      state: dealer.address_state,
+      postalCode: dealer.address_zip,
+    })
+    if (!brandPayload.website) throw new Error('Brand website is required and must be https://')
+    if (!brandPayload.email) throw new Error('Brand email is required (use the address from onboarding / scrape).')
+    if (!brandPayload.phone) throw new Error('Brand phone is required.')
+
+    const created = await telnyxPost('/10dlc/brand', brandPayload)
+    if (created.status >= 400) {
+      throw new Error(JSON.stringify(created.data))
+    }
+    brandId = created.data?.brandId || created.data?.data?.brandId || created.data?.id
+    if (!brandId) throw new Error('Telnyx did not return a brandId')
+    brandCreated = true
+  }
+
+  let phoneNumber = dealer.telnyx_phone_number || null
+  let messagingProfileId = dealer.messaging_profile_id || null
+  let numberNote = ''
+
+  if (payload.buyNumber !== false && !phoneNumber) {
+    const city = String(dealer.address_city || '').trim()
+    const state = String(dealer.address_state || '').trim().toUpperCase().slice(0, 2)
+    const local = await searchLocalNumbers(city, state)
+    if (local.length === 0) {
+      numberNote = `No local numbers in ${city || 'that city'}${state ? `, ${state}` : ''}. Ask before buying a number from somewhere else.`
+    } else {
+      const chosen = local[0]
+      const profile = await telnyxPost('/messaging_profiles', {
+        name: dealer.dba_name || dealer.dealership_name,
+        webhook_url: 'https://portal.visquanta.com/api/sms/inbound',
+        webhook_failover_url: '',
+        whitelisted_destinations: ['US', 'CA'],
+      })
+      if (profile.status >= 400) {
+        throw new Error(JSON.stringify(profile.data))
+      }
+      messagingProfileId = profile.data?.data?.id || profile.data?.id
+      const order = await telnyxPost('/number_orders', {
+        phone_numbers: [{ phone_number: chosen.phone_number }],
+        messaging_profile_id: messagingProfileId,
+      })
+      if (order.status >= 400) {
+        throw new Error(JSON.stringify(order.data))
+      }
+      phoneNumber = chosen.phone_number
+    }
+  }
+
+  const updates: Record<string, string | null> = {
+    telnyx_brand_id: brandId,
+  }
+  if (ein) updates.ein = ein
+  if (payload.brandEmail || dealer.brand_email) updates.brand_email = payload.brandEmail || dealer.brand_email
+  if (payload.sourceWebsite || dealer.source_website) updates.source_website = httpsUrl(payload.sourceWebsite || dealer.source_website)
+  if (phoneNumber) updates.telnyx_phone_number = phoneNumber
+  if (messagingProfileId) updates.messaging_profile_id = messagingProfileId
+
+  const { error: updateError } = await supabase
+    .from('dealerships')
+    .update(updates)
+    .eq('id', dealer.id)
+  if (updateError) {
+    throw new Error(`Brand created but row write-back failed: ${updateError.message}`)
+  }
+
+  return {
+    success: true,
+    brandCreated,
+    brandId,
+    phoneNumber,
+    messagingProfileId,
+    needsNumberChoice: Boolean(numberNote),
+    numberNote,
+  }
+}
+
+async function searchLocalNumbers(city: string, state: string) {
+  if (!city) return []
+  const params = new URLSearchParams({
+    'filter[country_code]': 'US',
+    'filter[limit]': '5',
+    'filter[features]': 'sms',
+    'filter[locality]': city,
+  })
+  if (state) params.set('filter[administrative_area]', state)
+  try {
+    const data = await telnyxGet(`/available_numbers?${params.toString()}`)
+    return (data?.data || []).map((row: any) => ({
+      phone_number: row.phone_number || row.phoneNumber,
+      locality: row.locality,
+      administrative_area: row.administrative_area,
+    })).filter((row: any) => row.phone_number)
+  } catch {
+    return []
   }
 }

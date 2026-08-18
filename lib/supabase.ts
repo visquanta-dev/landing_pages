@@ -58,6 +58,13 @@ export type Dealership = {
   vercel_project_id: string | null
   vercel_deployment_url: string | null
   deployed_at: string | null
+  ein?: string | null
+  brand_email?: string | null
+  source_website?: string | null
+  telnyx_brand_id?: string | null
+  telnyx_campaign_id?: string | null
+  telnyx_phone_number?: string | null
+  messaging_profile_id?: string | null
 }
 
 export type Vehicle = {

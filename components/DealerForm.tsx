@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Dealership, Vehicle, GymService, InsuranceProduct } from '@/lib/supabase'
 import { generateSmsTemplates } from '@/lib/sms-templates'
+import { httpsUrl } from '@/lib/https-url'
 import { BUSINESS_TYPE_OPTIONS, businessTypeLabel, defaultServicesForBusinessType, isDryCleanerBusiness, isGymBusiness, isInsuranceBusiness, isServiceBusiness } from '@/lib/site-niche'
 
 type Props = {
@@ -78,6 +79,14 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
         page_title: dealership.page_title || '',
         maps_url: dealership.maps_url || '',
         is_active: dealership.is_active ?? true,
+        ein: dealership.ein || '',
+        brand_email: dealership.brand_email || '',
+        source_website: dealership.source_website || '',
+        telnyx_brand_id: dealership.telnyx_brand_id || '',
+        telnyx_phone_number: dealership.telnyx_phone_number || '',
+        messaging_profile_id: dealership.messaging_profile_id || '',
+        existingBrandId: dealership.telnyx_brand_id || '',
+        shareExistingBrand: Boolean(dealership.telnyx_brand_id),
       }
     }
 
@@ -122,6 +131,14 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
       page_title: name ? `Book Your Appointment | ${name}` : '',
       maps_url: name ? `https://maps.google.com/?q=${encodeURIComponent(name + ' ' + (addr.city || ''))}` : '',
       is_active: true,
+      ein: '',
+      brand_email: s?.brand_email || '',
+      source_website: s?.source_website || s?.source_url || '',
+      telnyx_brand_id: '',
+      telnyx_phone_number: '',
+      messaging_profile_id: '',
+      existingBrandId: '',
+      shareExistingBrand: false,
     }
   }
 
@@ -353,7 +370,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
     try {
       // Must save first
       const method = isEdit ? 'PUT' : 'POST'
-      const body = isEdit ? { ...form, id: dealership!.id } : form
+      const body = isEdit ? { ...savePayload(), id: dealership!.id } : savePayload()
       const saveRes = await fetch('/api/dealerships', {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -391,6 +408,25 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
       if (data.success) {
         setDeployResult(data)
         setDnsStatus(data.domain?.verified ? 'connected' : 'pending')
+        if (form.ein || (form.shareExistingBrand && form.existingBrandId)) {
+          try {
+            const brand = await registerBrand()
+            if (brand?.needsNumberChoice) {
+              setDeploying(false)
+              return
+            }
+          } catch (brandError: any) {
+            setDeployProgress({
+              open: true,
+              phase: 'error',
+              title: 'Site is live. Brand step failed',
+              message: brandError.message || 'Brand registration failed',
+              liveUrl: data.liveUrl,
+            })
+            setDeploying(false)
+            return
+          }
+        }
         if (data.domain?.verified) {
           await redirectTo10Dlc(data.liveUrl)
         } else {
@@ -433,11 +469,64 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
   }
 
   // Save only (no deploy)
+  function savePayload() {
+    const { shareExistingBrand, existingBrandId, ...rest } = form
+    return {
+      ...rest,
+      source_website: httpsUrl(form.source_website),
+      telnyx_brand_id: shareExistingBrand ? (existingBrandId || form.telnyx_brand_id) : form.telnyx_brand_id,
+    }
+  }
+
+  async function registerBrand() {
+    setDeployProgress({
+      open: true,
+      phase: 'verifying',
+      title: 'Registering 10DLC brand',
+      message: 'Creating the Telnyx brand and looking for a number in this city.',
+      liveUrl: `https://${form.subdomain}.visquanta.com`,
+    })
+    const res = await fetch('/api/10dlc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'create_brand',
+        subdomain: form.subdomain,
+        ein: form.ein,
+        brandEmail: form.brand_email,
+        sourceWebsite: form.source_website,
+        existingBrandId: form.shareExistingBrand ? form.existingBrandId : '',
+        buyNumber: true,
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok || data.error) {
+      throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error || data))
+    }
+    setForm(f => ({
+      ...f,
+      telnyx_brand_id: data.brandId || f.telnyx_brand_id,
+      telnyx_phone_number: data.phoneNumber || f.telnyx_phone_number,
+      messaging_profile_id: data.messagingProfileId || f.messaging_profile_id,
+    }))
+    if (data.needsNumberChoice) {
+      setDeployProgress({
+        open: true,
+        phase: 'error',
+        title: 'Brand saved. Number needs a decision',
+        message: data.numberNote || 'No local numbers in that city. Ask before buying one from somewhere else.',
+        liveUrl: `https://${form.subdomain}.visquanta.com`,
+      })
+      return data
+    }
+    return data
+  }
+
   async function handleSave() {
     setSaving(true)
     try {
       const method = isEdit ? 'PUT' : 'POST'
-      const body = isEdit ? { ...form, id: dealership!.id } : form
+      const body = isEdit ? { ...savePayload(), id: dealership!.id } : savePayload()
       const res = await fetch('/api/dealerships', {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -581,6 +670,44 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
                     onChange={e => handleSmsPhoneChange(e.target.value)} placeholder="Optional — defaults to sales" />
                 </div>
               </div>
+              <hr className="border-white/[0.06]" />
+              <p className="text-[11px] font-semibold text-white/40 uppercase tracking-widest">10DLC Brand</p>
+              <p className="text-xs text-white/40">EIN comes from the onboarding survey. Brand email and phone are the shop&apos;s, not a VisQuanta mailbox. If this is one of several locations under the same legal entity, ask first, then attach the existing brand.</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>EIN</label>
+                  <input className={inputClass} value={form.ein || ''} onChange={e => set('ein', e.target.value)} placeholder="12-3456789" />
+                </div>
+                <div>
+                  <label className={labelClass}>Brand Email</label>
+                  <input className={inputClass} value={form.brand_email || ''} onChange={e => set('brand_email', e.target.value)} placeholder="from scrape / onboarding" />
+                </div>
+              </div>
+              <div>
+                <label className={labelClass}>Original Website (brand site, https)</label>
+                <input className={inputClass} value={form.source_website || ''} onChange={e => set('source_website', e.target.value)} placeholder="https://theshop.com" />
+              </div>
+              <label className="flex items-start gap-3 text-sm text-white/70">
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.shareExistingBrand)}
+                  onChange={e => set('shareExistingBrand', e.target.checked)}
+                  className="mt-1"
+                />
+                <span>Share an existing brand (multi-location). Only check this after you have asked.</span>
+              </label>
+              {form.shareExistingBrand && (
+                <div>
+                  <label className={labelClass}>Existing brand ID</label>
+                  <input className={inputClass} value={form.existingBrandId || ''} onChange={e => set('existingBrandId', e.target.value)} placeholder="4b20019..." />
+                </div>
+              )}
+              {(form.telnyx_brand_id || form.telnyx_phone_number) && (
+                <p className="text-xs text-emerald-400/80">
+                  Brand {form.telnyx_brand_id || 'pending'}
+                  {form.telnyx_phone_number ? ` · ${form.telnyx_phone_number}` : ''}
+                </p>
+              )}
               <hr className="border-white/[0.06]" />
               <p className="text-[11px] font-semibold text-white/40 uppercase tracking-widest">Address</p>
               <div>
