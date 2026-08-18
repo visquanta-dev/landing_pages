@@ -92,8 +92,13 @@ export default function TenDLCPage() {
     return list
   }, [brands, filter])
 
+  function isVerifiedBrand(brand: Brand) {
+    const status = (brand.identityStatus || '').toUpperCase()
+    return status === 'VERIFIED' || status === 'VETTED_VERIFIED'
+  }
+
   const noCampaignBrands = useMemo(
-    () => brands.filter(b => b.assignedCampaignsCount === 0 && !EXCLUDED_BRAND_IDS.has(b.brandId)),
+    () => brands.filter(b => b.assignedCampaignsCount === 0 && !EXCLUDED_BRAND_IDS.has(b.brandId) && isVerifiedBrand(b)),
     [brands]
   )
 
@@ -175,7 +180,7 @@ export default function TenDLCPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">10DLC Campaigns</h1>
           <p className="text-sm text-white/40 mt-1">
-            {stats.withCampaign} of {stats.total} brands have campaigns registered
+            {stats.withCampaign} of {stats.total} brands have campaigns. Push a campaign only after the brand is VERIFIED.
           </p>
         </div>
         <div className="flex gap-3">
@@ -205,7 +210,7 @@ export default function TenDLCPage() {
           { label: 'Total Brands', value: stats.total, color: 'text-white' },
           { label: 'With Campaign', value: stats.withCampaign, color: 'text-emerald-400' },
           { label: 'No Campaign', value: stats.noCampaign, color: 'text-amber-400' },
-          { label: 'Eligible', value: stats.eligible, color: 'text-red-400' },
+          { label: 'Verified, no campaign', value: stats.eligible, color: 'text-red-400' },
         ].map(s => (
           <div key={s.label} className="bg-[#141414] border border-white/[0.06] rounded-xl p-4">
             <p className="text-xs text-white/40 mb-1">{s.label}</p>

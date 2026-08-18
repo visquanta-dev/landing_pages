@@ -42,6 +42,21 @@ function campaignId(data: any) {
   return data?.campaignId || data?.tcrCampaignId || data?.id || null
 }
 
+function isVerifiedBrandStatus(status?: string | null) {
+  const value = String(status || '').toUpperCase()
+  return value === 'VERIFIED' || value === 'VETTED_VERIFIED'
+}
+
+async function assertBrandReadyForCampaign(brandId: string) {
+  if (!brandId) throw new Error('brandId required')
+  const brand = await telnyxGet(`/10dlc/brand/${encodeURIComponent(brandId)}`)
+  const status = brand?.identityStatus || brand?.data?.identityStatus || brand?.status
+  if (!isVerifiedBrandStatus(status)) {
+    throw new Error(`Brand ${brandId} is ${status || 'unverified'}. Wait until Telnyx marks it VERIFIED before pushing a campaign.`)
+  }
+  return brand
+}
+
 // Campaigns are listed at /10dlc/campaign. NOTE: /10dlc/campaignBuilder is
 // POST-only (it CREATES a campaign) — GETting it returns Telnyx error 10005
 // "Resource not found", which previously caused the pre-create dedup check to
@@ -154,6 +169,7 @@ export async function POST(req: NextRequest) {
 
     if (action === 'create_campaign') {
       const campaign = stripInternalCampaignFields(payload.campaign)
+      await assertBrandReadyForCampaign(String(campaign.brandId || ''))
       const existing = await listCampaignsForBrand(String(campaign.brandId || ''))
       if (existing.length > 0) {
         return NextResponse.json({ alreadyExists: true, ...existing[0] })
@@ -176,6 +192,7 @@ export async function POST(req: NextRequest) {
         const displayName = campaign._displayName
         try {
           const telnyxCampaign = stripInternalCampaignFields(campaign)
+          await assertBrandReadyForCampaign(String(campaign.brandId || ''))
           const existing = await listCampaignsForBrand(String(campaign.brandId || ''))
           if (existing.length > 0) {
             results.push({
