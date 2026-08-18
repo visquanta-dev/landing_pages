@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import type { Dealership } from '@/lib/supabase'
 import { businessTypeLabel, customerCareMessageTypes, defaultServicesForBusinessType, isCcwBusiness, isDryCleanerBusiness, isServiceBusiness } from '@/lib/site-niche'
+import { DRYCLEANER_ASSETS, dryCleanerServiceImage } from '@/lib/drycleaner-assets'
 import AgeGate from '@/components/AgeGate'
 
 const CCW_MINIMUM_AGE = 21
@@ -146,8 +147,10 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
     : defaultGymServices
   const customServiceIcon = isCcw ? '\u{1F6E1}\uFE0F' : isDryCleaner ? '\u{1F454}' : '\u{1F4C5}'
   const customServices = services.length > 0
-    ? services.map(s => ({ name: s.name, icon: customServiceIcon, desc: s.description }))
-    : defaultServicesForBusinessType(d.business_type).map(s => ({ name: s.name, icon: customServiceIcon, desc: s.description }))
+    ? services.map(s => ({ name: s.name, icon: customServiceIcon, image: isDryCleaner ? dryCleanerServiceImage(s.name) : '', desc: s.description }))
+    : defaultServicesForBusinessType(d.business_type).map(s => ({ name: s.name, icon: customServiceIcon, image: isDryCleaner ? dryCleanerServiceImage(s.name) : '', desc: s.description }))
+  const heroBg = d.hero_bg_image || (isDryCleaner ? DRYCLEANER_ASSETS.heroBg : '')
+  const heroCard = d.hero_card_image || (isDryCleaner ? DRYCLEANER_ASSETS.heroCard : '')
 
   const defaultInsuranceProducts = [
     { name: 'Auto Insurance', icon: '\u{1F697}', desc: 'Comprehensive coverage for your vehicles with competitive rates and bundling options.' },
@@ -273,7 +276,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           {/* HERO */}
           <section style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', inset: 0 }}>
-              {d.hero_bg_image && <img src={d.hero_bg_image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.3) saturate(0.7)' }} />}
+              {heroBg && <img src={heroBg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: isDryCleaner ? 'brightness(0.42) saturate(0.85)' : 'brightness(0.3) saturate(0.7)' }} />}
               <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 20% 50%, ${c}10 0%, transparent 60%), linear-gradient(180deg, rgba(9,9,9,0.2) 0%, rgba(9,9,9,0.5) 50%, #090909 100%)` }} />
               <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px)', backgroundSize: '80px 80px' }} />
             </div>
@@ -308,9 +311,9 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                 </div>
               </div>
               <div className="lp-hero-visual anim-up anim-d3" style={{ position: 'relative' }}>
-                {d.hero_card_image && (
+                {heroCard && (
                   <div style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 40px 100px rgba(0,0,0,0.5)' }}>
-                    <img src={d.hero_card_image} alt="" style={{ width: '100%', height: 380, objectFit: 'cover', display: 'block' }} />
+                    <img src={heroCard} alt="" style={{ width: '100%', height: 380, objectFit: 'cover', display: 'block' }} />
                     <div style={{ position: 'absolute', top: 20, right: 20, background: c, color: '#fff', padding: '8px 16px', borderRadius: 100, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>{isDryCleaner ? 'Pickup Available' : 'Now Booking'}</div>
                     <div style={{ position: 'absolute', bottom: 20, left: 20, right: 20, background: 'rgba(9,9,9,0.85)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
                       {d.logo_url && <img src={d.logo_url} alt="" style={{ width: 44, height: 44, objectFit: 'contain', background: '#fff', borderRadius: 8, padding: 5 }} />}
@@ -417,10 +420,16 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                 <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(customServices.length, 3)}, 1fr)`, gap: 24 }}>
                   {customServices.map((s, i) => (
                     <div key={i} className={`lp-reveal ${i > 0 ? `lp-d${i}` : ''}`}
-                      style={{ background: '#161616', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: '40px 32px' }}>
-                      <div style={{ fontSize: 40, marginBottom: 20 }}>{s.icon}</div>
-                      <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>{s.name}</h3>
-                      <p style={{ fontSize: 14, color: '#A0A0A0', lineHeight: 1.7, fontWeight: 300 }}>{s.desc}</p>
+                      style={{ background: '#161616', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, overflow: 'hidden' }}>
+                      {s.image ? (
+                        <img src={s.image} alt="" style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }} />
+                      ) : (
+                        <div style={{ fontSize: 40, padding: '40px 32px 0' }}>{s.icon}</div>
+                      )}
+                      <div style={{ padding: s.image ? '28px 32px 40px' : '20px 32px 40px' }}>
+                        <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>{s.name}</h3>
+                        <p style={{ fontSize: 14, color: '#A0A0A0', lineHeight: 1.7, fontWeight: 300 }}>{s.desc}</p>
+                      </div>
                     </div>
                   ))}
                 </div>

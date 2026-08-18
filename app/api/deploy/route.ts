@@ -286,7 +286,7 @@ export async function POST(req: NextRequest) {
           target: 'production',
           files: files.map(f => ({
             file: f.file,
-            data: Buffer.from(f.data).toString('base64'),
+            data: f.encoding === 'base64' ? f.data : Buffer.from(f.data).toString('base64'),
             encoding: 'base64',
           })),
           projectSettings: {

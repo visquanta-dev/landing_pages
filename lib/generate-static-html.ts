@@ -1,5 +1,14 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import type { Dealership } from './supabase'
 import { businessTypeLabel, customerCareMessageTypes, defaultServicesForBusinessType, isDryCleanerBusiness, isServiceBusiness, normalizeBusinessType } from './site-niche'
+import { DRYCLEANER_ASSETS, DRYCLEANER_STATIC_FILENAMES, dryCleanerServiceImage } from './drycleaner-assets'
+
+export type StaticSiteFile = {
+  file: string
+  data: string
+  encoding?: 'utf8' | 'base64'
+}
 
 function adjustColor(hex: string, amount: number): string {
   hex = hex.replace('#', '')
@@ -152,7 +161,7 @@ const DEFAULT_TICKETS_CATEGORIES = [
   { name: 'City Breaks', icon: '\u{1F306}', desc: 'Weekend escapes and short trips to top cities, hand-picked for value.' },
 ]
 
-export function generateStaticSite(d: Dealership): { file: string; data: string }[] {
+export function generateStaticSite(d: Dealership): StaticSiteFile[] {
   const c = d.primary_color || '#D4132A'
   const cDark = adjustColor(c, -20)
   const hours = d.hours || {}
@@ -168,6 +177,8 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
   const isDryCleaner = isDryCleanerBusiness(d.business_type)
   const nicheLabel = businessTypeLabel(d.business_type)
   const isCustomService = isServiceBusiness(d.business_type) && !isGym && !isTickets
+  const heroBg = d.hero_bg_image || (isDryCleaner ? DRYCLEANER_ASSETS.heroBg : '')
+  const heroCard = d.hero_card_image || (isDryCleaner ? DRYCLEANER_ASSETS.heroCard : '')
 
   const dealerTimes = ['9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM','4:30 PM','5:00 PM','5:30 PM','6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM']
   const gymTimes = ['5:00 AM','5:30 AM','6:00 AM','6:30 AM','7:00 AM','7:30 AM','8:00 AM','8:30 AM',...dealerTimes]
@@ -214,8 +225,8 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
   } else if (isCustomService) {
     const customIcon = isCcw ? '\u{1F6E1}\uFE0F' : isDryCleaner ? '\u{1F454}' : businessType.includes('solar') || businessType.includes('energy') ? '\u2600\uFE0F' : '\u{1F4C5}'
     const customServices = (d.services && d.services.length > 0)
-      ? d.services.map(s => ({ name: s.name, icon: customIcon, desc: s.description }))
-      : defaultServicesForBusinessType(d.business_type).map(s => ({ name: s.name, icon: customIcon, desc: s.description }))
+      ? d.services.map(s => ({ name: s.name, icon: customIcon, image: isDryCleaner ? dryCleanerServiceImage(s.name) : '', desc: s.description }))
+      : defaultServicesForBusinessType(d.business_type).map(s => ({ name: s.name, icon: customIcon, image: isDryCleaner ? dryCleanerServiceImage(s.name) : '', desc: s.description }))
 
     middleSectionHTML = `
     <section id="services" class="lp-section" style="padding:120px 48px;background:#111">
@@ -225,10 +236,14 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
         <p class="lp-reveal lp-d2" style="font-size:16px;color:#A0A0A0;max-width:500px;margin-bottom:64px;font-weight:300;line-height:1.7">${isCcw ? `Explore the permit pre-qualification, application assistance, and firearms safety support available through ${esc(d.dealership_name)}.` : isDryCleaner ? `Explore dry cleaning, wash and fold, pickup and delivery, and alteration services at ${esc(d.dealership_name)}.` : `Explore the ${esc(nicheLabel.toLowerCase())} services available at ${esc(d.dealership_name)}.`}</p>
         <div class="lp-3col" style="display:grid;grid-template-columns:repeat(${Math.min(customServices.length, 3)},1fr);gap:24px">
           ${customServices.map((s, i) => `
-            <div class="lp-reveal${i > 0 ? ` lp-d${i}` : ''}" style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:40px 32px;text-align:center">
-              <div style="font-size:48px;margin-bottom:20px">${s.icon}</div>
-              <p style="font-size:18px;font-weight:600;margin-bottom:10px">${esc(s.name)}</p>
-              <p style="font-size:14px;color:#A0A0A0;line-height:1.7;font-weight:300">${esc(s.desc)}</p>
+            <div class="lp-reveal${i > 0 ? ` lp-d${i}` : ''}" style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px;overflow:hidden">
+              ${s.image
+                ? `<img src="${esc(s.image)}" alt="" style="width:100%;height:180px;object-fit:cover;display:block" />`
+                : `<div style="font-size:48px;padding:40px 32px 0;text-align:center">${s.icon}</div>`}
+              <div style="padding:${s.image ? '28px 32px 40px' : '20px 32px 40px'};text-align:center">
+                <p style="font-size:18px;font-weight:600;margin-bottom:10px">${esc(s.name)}</p>
+                <p style="font-size:14px;color:#A0A0A0;line-height:1.7;font-weight:300">${esc(s.desc)}</p>
+              </div>
             </div>
           `).join('')}
         </div>
@@ -754,7 +769,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
   <!-- HERO -->
   <section style="position:relative;min-height:100vh;display:flex;align-items:center;overflow:hidden">
     <div style="position:absolute;inset:0">
-      ${d.hero_bg_image ? `<img src="${esc(d.hero_bg_image)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(0.3) saturate(0.7)" />` : ''}
+      ${heroBg ? `<img src="${esc(heroBg)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:${isDryCleaner ? 'brightness(0.42) saturate(0.85)' : 'brightness(0.3) saturate(0.7)'}" />` : ''}
       <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 20% 50%,${c}10 0%,transparent 60%),linear-gradient(180deg,rgba(9,9,9,0.2) 0%,rgba(9,9,9,0.5) 50%,#090909 100%)"></div>
       <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.012) 1px,transparent 1px);background-size:80px 80px"></div>
     </div>
@@ -779,9 +794,9 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
         </div>
       </div>
       <div class="lp-hero-visual anim-up anim-d3" style="position:relative">
-        ${d.hero_card_image ? `
+        ${heroCard ? `
           <div style="border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);box-shadow:0 40px 100px rgba(0,0,0,0.5)">
-            <img src="${esc(d.hero_card_image)}" alt="" style="width:100%;height:380px;object-fit:cover;display:block" />
+            <img src="${esc(heroCard)}" alt="" style="width:100%;height:380px;object-fit:cover;display:block" />
             <div style="position:absolute;top:20px;right:20px;background:${esc(c)};color:#fff;padding:8px 16px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">${isDryCleaner ? 'Pickup Available' : 'Now Booking'}</div>
             <div style="position:absolute;bottom:20px;left:20px;right:20px;background:rgba(9,9,9,0.85);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:18px 20px;display:flex;align-items:center;gap:14px">
               ${d.logo_url ? `<img src="${esc(d.logo_url)}" alt="" style="width:44px;height:44px;object-fit:contain;background:#fff;border-radius:8px;padding:5px" />` : ''}
@@ -1081,9 +1096,24 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
 </body>
 </html>`
 
-  return [
+  const files: StaticSiteFile[] = [
     { file: 'index.html', data: indexHTML },
     { file: 'privacy-policy/index.html', data: privacyHTML },
     { file: 'terms-and-conditions/index.html', data: termsHTML },
   ]
+
+  if (isDryCleaner) {
+    const assetDir = path.join(process.cwd(), 'public', 'images', 'drycleaners')
+    for (const name of DRYCLEANER_STATIC_FILENAMES) {
+      const full = path.join(assetDir, name)
+      if (!fs.existsSync(full)) continue
+      files.push({
+        file: `images/drycleaners/${name}`,
+        data: fs.readFileSync(full).toString('base64'),
+        encoding: 'base64',
+      })
+    }
+  }
+
+  return files
 }
