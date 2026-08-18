@@ -6,6 +6,13 @@ import type { Dealership, Vehicle, GymService, InsuranceProduct } from '@/lib/su
 import { generateSmsTemplates } from '@/lib/sms-templates'
 import { httpsUrl } from '@/lib/https-url'
 import { BUSINESS_TYPE_OPTIONS, businessTypeLabel, defaultServicesForBusinessType, isDryCleanerBusiness, isGymBusiness, isInsuranceBusiness, isServiceBusiness } from '@/lib/site-niche'
+import { digitsOnly } from '@/lib/telnyx-brand'
+
+function formatEin(value?: string | null) {
+  const digits = digitsOnly(value)
+  if (digits.length !== 9) return value || ''
+  return `${digits.slice(0, 2)}-${digits.slice(2)}`
+}
 
 type Props = {
   dealership: Dealership | null
@@ -40,7 +47,10 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
   const router = useRouter()
   const isEdit = !!dealership
   const [saving, setSaving] = useState(false)
-  const [tab, setTab] = useState<'details' | 'branding' | 'vehicles' | 'sms' | 'domain'>('details')
+  const [tab, setTab] = useState<'details' | 'ein' | 'branding' | 'vehicles' | 'sms' | 'domain'>('details')
+  const [brandReviewOpen, setBrandReviewOpen] = useState(false)
+  const [einChecked, setEinChecked] = useState(false)
+  const [brandBusy, setBrandBusy] = useState(false)
   const [dnsStatus, setDnsStatus] = useState<'checking' | 'connected' | 'pending' | null>(null)
 
   // Build initial form state
@@ -408,25 +418,6 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
       if (data.success) {
         setDeployResult(data)
         setDnsStatus(data.domain?.verified ? 'connected' : 'pending')
-        if (form.ein || (form.shareExistingBrand && form.existingBrandId)) {
-          try {
-            const brand = await registerBrand()
-            if (brand?.needsNumberChoice) {
-              setDeploying(false)
-              return
-            }
-          } catch (brandError: any) {
-            setDeployProgress({
-              open: true,
-              phase: 'error',
-              title: 'Site is live. Brand step failed',
-              message: brandError.message || 'Brand registration failed',
-              liveUrl: data.liveUrl,
-            })
-            setDeploying(false)
-            return
-          }
-        }
         if (data.domain?.verified) {
           await redirectTo10Dlc(data.liveUrl)
         } else {
@@ -548,7 +539,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
 
   const inputClass = 'w-full bg-[#0A0A0A] border border-white/[0.08] rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20 outline-none transition-all'
   const labelClass = 'block text-[11px] font-semibold text-white/40 uppercase tracking-widest mb-1.5'
-  const TABS = ['details', 'branding', 'vehicles', 'sms', 'domain'] as const
+  const TABS = ['details', 'ein', 'branding', 'vehicles', 'sms', 'domain'] as const
   const isGymType = isGymBusiness(form.business_type)
   const isInsuranceType = isInsuranceBusiness(form.business_type)
   const isServiceType = isServiceBusiness(form.business_type)
@@ -584,7 +575,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
           {TABS.map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`text-xs font-medium px-4 py-2 rounded-lg transition-all capitalize ${tab === t ? 'bg-white/[0.08] text-white' : 'text-white/40 hover:text-white/60'}`}>
-              {t === 'sms' ? 'SMS / Legal' : t === 'domain' ? '\uD83C\uDF10 Domain' : t === 'vehicles' ? (isServiceType ? 'Services' : isInsuranceType ? 'Products' : 'Vehicles') : t}
+              {t === 'sms' ? 'SMS / Legal' : t === 'ein' ? 'EIN / Brand' : t === 'domain' ? '\uD83C\uDF10 Domain' : t === 'vehicles' ? (isServiceType ? 'Services' : isInsuranceType ? 'Products' : 'Vehicles') : t}
             </button>
           ))}
         </div>
@@ -671,44 +662,6 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
                 </div>
               </div>
               <hr className="border-white/[0.06]" />
-              <p className="text-[11px] font-semibold text-white/40 uppercase tracking-widest">10DLC Brand</p>
-              <p className="text-xs text-white/40">EIN comes from the onboarding survey. Brand email and phone are the shop&apos;s, not a VisQuanta mailbox. If this is one of several locations under the same legal entity, ask first, then attach the existing brand.</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className={labelClass}>EIN</label>
-                  <input className={inputClass} value={form.ein || ''} onChange={e => set('ein', e.target.value)} placeholder="12-3456789" />
-                </div>
-                <div>
-                  <label className={labelClass}>Brand Email</label>
-                  <input className={inputClass} value={form.brand_email || ''} onChange={e => set('brand_email', e.target.value)} placeholder="from scrape / onboarding" />
-                </div>
-              </div>
-              <div>
-                <label className={labelClass}>Original Website (brand site, https)</label>
-                <input className={inputClass} value={form.source_website || ''} onChange={e => set('source_website', e.target.value)} placeholder="https://theshop.com" />
-              </div>
-              <label className="flex items-start gap-3 text-sm text-white/70">
-                <input
-                  type="checkbox"
-                  checked={Boolean(form.shareExistingBrand)}
-                  onChange={e => set('shareExistingBrand', e.target.checked)}
-                  className="mt-1"
-                />
-                <span>Share an existing brand (multi-location). Only check this after you have asked.</span>
-              </label>
-              {form.shareExistingBrand && (
-                <div>
-                  <label className={labelClass}>Existing brand ID</label>
-                  <input className={inputClass} value={form.existingBrandId || ''} onChange={e => set('existingBrandId', e.target.value)} placeholder="4b20019..." />
-                </div>
-              )}
-              {(form.telnyx_brand_id || form.telnyx_phone_number) && (
-                <p className="text-xs text-emerald-400/80">
-                  Brand {form.telnyx_brand_id || 'pending'}
-                  {form.telnyx_phone_number ? ` · ${form.telnyx_phone_number}` : ''}
-                </p>
-              )}
-              <hr className="border-white/[0.06]" />
               <p className="text-[11px] font-semibold text-white/40 uppercase tracking-widest">Address</p>
               <div>
                 <label className={labelClass}>Street Address</label>
@@ -730,6 +683,62 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
                   </div>
                 ))}
               </div>
+            </>
+          )}
+
+          {tab === 'ein' && (
+            <>
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3">
+                <p className="text-sm text-amber-200 font-medium">Check the EIN before Telnyx</p>
+                <p className="text-xs text-white/50 mt-1">Paste it from the onboarding survey. Nothing is sent to Telnyx until you review this screen and confirm.</p>
+              </div>
+              <div>
+                <label className={labelClass}>EIN *</label>
+                <input className={`${inputClass} font-mono text-lg tracking-wide`} value={form.ein || ''} onChange={e => set('ein', e.target.value)} placeholder="12-3456789" />
+                {digitsOnly(form.ein).length === 9 && (
+                  <p className="text-xs text-emerald-400 mt-1.5">Formatted: {formatEin(form.ein)}</p>
+                )}
+                {form.ein && digitsOnly(form.ein).length !== 9 && (
+                  <p className="text-xs text-red-400 mt-1.5">EIN must be 9 digits before it can go to Telnyx.</p>
+                )}
+              </div>
+              <div>
+                <label className={labelClass}>Brand Email</label>
+                <input className={inputClass} value={form.brand_email || ''} onChange={e => set('brand_email', e.target.value)} placeholder="from scrape / onboarding" />
+              </div>
+              <div>
+                <label className={labelClass}>Original Website (https)</label>
+                <input className={inputClass} value={form.source_website || ''} onChange={e => set('source_website', e.target.value)} placeholder="https://theshop.com" />
+              </div>
+              <label className="flex items-start gap-3 text-sm text-white/70">
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.shareExistingBrand)}
+                  onChange={e => set('shareExistingBrand', e.target.checked)}
+                  className="mt-1"
+                />
+                <span>Share an existing brand (multi-location). Only check this after you have asked.</span>
+              </label>
+              {form.shareExistingBrand && (
+                <div>
+                  <label className={labelClass}>Existing brand ID</label>
+                  <input className={inputClass} value={form.existingBrandId || ''} onChange={e => set('existingBrandId', e.target.value)} placeholder="4b20019..." />
+                </div>
+              )}
+              {(form.telnyx_brand_id || form.telnyx_phone_number) && (
+                <p className="text-xs text-emerald-400/80">
+                  Already on Telnyx: {form.telnyx_brand_id || 'brand pending'}
+                  {form.telnyx_phone_number ? ` · ${form.telnyx_phone_number}` : ''}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => { setEinChecked(false); setBrandReviewOpen(true) }}
+                disabled={Boolean(form.telnyx_brand_id) && !form.shareExistingBrand}
+                className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white text-sm font-semibold py-3 rounded-lg transition-all"
+              >
+                Review EIN and send to Telnyx
+              </button>
             </>
           )}
 
@@ -1156,6 +1165,69 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
                   </button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {brandReviewOpen && (
+        <div className="fixed inset-0 z-[80] bg-black/80 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="bg-[#111] border border-white/[0.1] rounded-2xl w-full max-w-lg shadow-2xl">
+            <div className="px-6 py-4 border-b border-white/[0.06]">
+              <h3 className="text-lg font-semibold">Check the EIN before Telnyx</h3>
+              <p className="text-xs text-white/40 mt-1">This is the last look before the brand is submitted.</p>
+            </div>
+            <div className="px-6 py-5 space-y-3 text-sm">
+              <div className="bg-[#0A0A0A] border border-amber-500/30 rounded-xl p-4">
+                <p className="text-[11px] font-semibold text-amber-400/80 uppercase tracking-widest mb-1">EIN</p>
+                <p className="text-2xl font-mono tracking-wider text-white">{formatEin(form.ein) || 'Missing'}</p>
+              </div>
+              {[
+                ['Legal name', form.legal_entity_name],
+                ['DBA', form.dba_name],
+                ['Brand email', form.brand_email],
+                ['Phone', form.phone_sales],
+                ['Website', httpsUrl(form.source_website)],
+                ['City', [form.address_city, form.address_state].filter(Boolean).join(', ')],
+              ].map(([label, value]) => (
+                <div key={label as string} className="flex gap-3">
+                  <span className="w-28 shrink-0 text-[11px] uppercase tracking-wider text-white/35 pt-0.5">{label}</span>
+                  <span className="text-white/80 break-all">{value || '—'}</span>
+                </div>
+              ))}
+              <label className="flex items-start gap-3 pt-2 text-sm text-white/70">
+                <input type="checkbox" checked={einChecked} onChange={e => setEinChecked(e.target.checked)} className="mt-1 accent-red-500" />
+                <span>I checked this EIN against the onboarding survey. Send it to Telnyx.</span>
+              </label>
+            </div>
+            <div className="px-6 py-4 border-t border-white/[0.06] flex justify-end gap-3">
+              <button type="button" onClick={() => setBrandReviewOpen(false)} className="text-sm text-white/50 hover:text-white px-4 py-2">Cancel</button>
+              <button
+                type="button"
+                disabled={!einChecked || brandBusy || digitsOnly(form.ein).length !== 9}
+                onClick={async () => {
+                  setBrandBusy(true)
+                  try {
+                    const method = isEdit ? 'PUT' : 'POST'
+                    const body = isEdit ? { ...savePayload(), id: dealership!.id } : savePayload()
+                    const saveRes = await fetch('/api/dealerships', {
+                      method,
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(body),
+                    })
+                    const saveData = await saveRes.json()
+                    if (saveData.error) throw new Error(saveData.error)
+                    await registerBrand()
+                    setBrandReviewOpen(false)
+                  } catch (e: any) {
+                    alert(e.message || 'Brand send failed')
+                  }
+                  setBrandBusy(false)
+                }}
+                className="text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 px-4 py-2 rounded-lg"
+              >
+                {brandBusy ? 'Sending...' : 'Send brand to Telnyx'}
+              </button>
             </div>
           </div>
         </div>
