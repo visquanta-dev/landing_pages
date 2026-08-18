@@ -6,7 +6,7 @@ import type { Dealership, Vehicle, GymService, InsuranceProduct } from '@/lib/su
 import { generateSmsTemplates } from '@/lib/sms-templates'
 import { httpsUrl } from '@/lib/https-url'
 import { BUSINESS_TYPE_OPTIONS, businessTypeLabel, defaultServicesForBusinessType, isDryCleanerBusiness, isGymBusiness, isInsuranceBusiness, isServiceBusiness } from '@/lib/site-niche'
-import { digitsOnly } from '@/lib/telnyx-brand'
+import { digitsOnly, storedTelnyxBrandId } from '@/lib/telnyx-brand'
 
 function formatEin(value?: string | null) {
   const digits = digitsOnly(value)
@@ -94,11 +94,11 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
         source_website: dealership.source_website || '',
         privacy_policy_url: dealership.hours?._privacy_url || '',
         terms_url: dealership.hours?._terms_url || '',
-        telnyx_brand_id: dealership.telnyx_brand_id || '',
+        telnyx_brand_id: storedTelnyxBrandId(dealership),
         telnyx_phone_number: dealership.telnyx_phone_number || '',
         messaging_profile_id: dealership.messaging_profile_id || '',
-        existingBrandId: dealership.telnyx_brand_id || '',
-        shareExistingBrand: Boolean(dealership.telnyx_brand_id),
+        existingBrandId: storedTelnyxBrandId(dealership),
+        shareExistingBrand: false,
       }
     }
 

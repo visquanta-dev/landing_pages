@@ -17,6 +17,10 @@ export function digitsOnly(value?: string | null) {
   return (value || '').replace(/\D/g, '')
 }
 
+export function storedTelnyxBrandId(dealer?: { telnyx_brand_id?: string | null; hours?: any } | null) {
+  return String(dealer?.telnyx_brand_id || dealer?.hours?._telnyx_brand_id || '').trim()
+}
+
 export function toE164(value?: string | null) {
   const digits = digitsOnly(value)
   if (digits.length === 10) return `+1${digits}`

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { stripInternalCampaignFields } from '@/lib/telnyx-10dlc'
-import { buildBrandPayload, toE164 } from '@/lib/telnyx-brand'
+import { buildBrandPayload, storedTelnyxBrandId, toE164 } from '@/lib/telnyx-brand'
 import { httpsUrl } from '@/lib/https-url'
 
 const TELNYX_API_KEY = process.env.TELNYX_API_KEY || ''
@@ -116,12 +116,15 @@ export async function GET(req: NextRequest) {
       // Merge: match by legal entity name (normalized)
       const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
       const dealerMap = new Map<string, any>()
+      const dealerByBrandId = new Map<string, any>()
       for (const d of dealerships) {
         if (d.legal_entity_name) dealerMap.set(normalize(d.legal_entity_name), d)
+        const storedId = storedTelnyxBrandId(d)
+        if (storedId) dealerByBrandId.set(storedId, d)
       }
 
       const merged = allBrands.map(brand => {
-        const dealer = dealerMap.get(normalize(brand.companyName))
+        const dealer = dealerByBrandId.get(brand.brandId) || dealerMap.get(normalize(brand.companyName))
         const builderCount = campaignCounts.get(brand.brandId) || 0
         const latestCampaign = latestCampaignByBrand.get(brand.brandId)
         return {
@@ -133,7 +136,7 @@ export async function GET(req: NextRequest) {
           // Supabase data
           phone: dealer?.phone_sales || null,
           contactEmail: dealer?.brand_email || dealer?.email || null,
-          storedBrandId: dealer?.telnyx_brand_id || null,
+          storedBrandId: storedTelnyxBrandId(dealer) || null,
           telnyxPhoneNumber: dealer?.telnyx_phone_number || null,
           messagingProfileId: dealer?.messaging_profile_id || null,
           subdomain: dealer?.subdomain || null,
@@ -253,7 +256,7 @@ async function createBrandAndNumber(payload: any) {
     .single()
   if (error || !dealer) throw new Error(`Dealer not found: ${subdomain}`)
 
-  const existingBrandId = String(payload.existingBrandId || dealer.telnyx_brand_id || '').trim()
+  const existingBrandId = String(payload.existingBrandId || storedTelnyxBrandId(dealer) || '').trim()
   const ein = String(payload.ein || dealer.ein || '').replace(/\D/g, '')
   let brandId = existingBrandId
   let brandCreated = false
