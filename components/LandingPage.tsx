@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { Dealership } from '@/lib/supabase'
-import { businessTypeLabel, defaultServicesForBusinessType, isCcwBusiness, isServiceBusiness } from '@/lib/site-niche'
+import { businessTypeLabel, customerCareMessageTypes, defaultServicesForBusinessType, isCcwBusiness, isDryCleanerBusiness, isServiceBusiness } from '@/lib/site-niche'
 import AgeGate from '@/components/AgeGate'
 
 const CCW_MINIMUM_AGE = 21
@@ -53,10 +53,27 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    const form = e.currentTarget
+
+    const termsBox = form.elements.namedItem('terms_accepted') as HTMLInputElement | null
+    const privacyBox = form.elements.namedItem('privacy_accepted') as HTMLInputElement | null
+    if (termsBox && !termsBox.checked) {
+      termsBox.setCustomValidity('You must agree to the Terms & Conditions to submit this form.')
+      termsBox.reportValidity()
+      return
+    }
+    termsBox?.setCustomValidity('')
+    if (privacyBox && !privacyBox.checked) {
+      privacyBox.setCustomValidity('You must agree to the Privacy Policy to submit this form.')
+      privacyBox.reportValidity()
+      return
+    }
+    privacyBox?.setCustomValidity('')
+
     if (isCcw) {
-      const monthInput = e.currentTarget.elements.namedItem('date_of_birth_month') as HTMLInputElement | null
-      const dayInput = e.currentTarget.elements.namedItem('date_of_birth_day') as HTMLInputElement | null
-      const yearInput = e.currentTarget.elements.namedItem('date_of_birth_year') as HTMLInputElement | null
+      const monthInput = form.elements.namedItem('date_of_birth_month') as HTMLInputElement | null
+      const dayInput = form.elements.namedItem('date_of_birth_day') as HTMLInputElement | null
+      const yearInput = form.elements.namedItem('date_of_birth_year') as HTMLInputElement | null
       const age = calculateAge(monthInput?.value || '', dayInput?.value || '', yearInput?.value || '')
       if (!monthInput || !dayInput || !yearInput || age === null) {
         yearInput?.setCustomValidity('Enter a valid date of birth.')
@@ -96,6 +113,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
   const isGym = d.business_type === 'gym'
   const isInsurance = d.business_type === 'insurance'
   const isCcw = isCcwBusiness(d.business_type)
+  const isDryCleaner = isDryCleanerBusiness(d.business_type)
   const isCustomService = isServiceBusiness(d.business_type) && !isGym
   const nicheLabel = businessTypeLabel(d.business_type)
   const hours = d.hours || {}
@@ -111,6 +129,8 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
       ? 'By checking this optional SMS consent box and submitting this form, you agree to receive recurring customer care text messages from this insurance agency, including appointment confirmations, consultation confirmations, reminders, rescheduling updates, missed appointment follow-ups, and account-related service notifications. Message frequency varies based on your requests and appointments. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. We will not share your SMS opt-in or consent status with third parties for purposes unrelated to providing these messaging services.'
       : isCcw
       ? 'By checking this optional SMS consent box and submitting this form, you agree to receive recurring customer care text messages from this permit assistance provider, including permit application assistance updates, qualification reminders, training-course access notifications, appointment confirmations, and account-related service notifications. Message frequency varies based on your requests and appointments. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. We will not share your SMS opt-in or consent status with third parties for purposes unrelated to providing these messaging services.'
+      : isDryCleaner
+      ? 'By checking this optional SMS consent box and submitting this form, you agree to receive recurring customer care text messages from this dry cleaner, including pickup confirmations, order-ready notifications, delivery updates, alteration status updates, missed pickup follow-ups, and account-related service notifications. Message frequency varies based on your requests and appointments. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. We will not share your SMS opt-in or consent status with third parties for purposes unrelated to providing these messaging services.'
       : 'By checking this optional SMS consent box and submitting this form, you agree to receive recurring customer care text messages from this business, including appointment confirmations, booking confirmations, reminders, rescheduling updates, missed appointment follow-ups, and account-related service notifications. Message frequency varies based on your requests and appointments. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. We will not share your SMS opt-in or consent status with third parties for purposes unrelated to providing these messaging services.')
   const smsCheckboxLabel =
     d.sms_checkbox_label ||
@@ -124,7 +144,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
   const gymServices = services.length > 0
     ? services.map(s => ({ name: s.name, icon: '\u{1F3CB}\uFE0F', desc: s.description }))
     : defaultGymServices
-  const customServiceIcon = isCcw ? '\u{1F6E1}\uFE0F' : '\u{1F4C5}'
+  const customServiceIcon = isCcw ? '\u{1F6E1}\uFE0F' : isDryCleaner ? '\u{1F454}' : '\u{1F4C5}'
   const customServices = services.length > 0
     ? services.map(s => ({ name: s.name, icon: customServiceIcon, desc: s.description }))
     : defaultServicesForBusinessType(d.business_type).map(s => ({ name: s.name, icon: customServiceIcon, desc: s.description }))
@@ -141,14 +161,16 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
   const gymTimes = ['5:00 AM','5:30 AM','6:00 AM','6:30 AM','7:00 AM','7:30 AM','8:00 AM','8:30 AM']
   const dealerTimes = ['9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM','4:30 PM','5:00 PM','5:30 PM','6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM']
   const times = isGym ? [...gymTimes, ...dealerTimes] : isInsurance ? dealerTimes : dealerTimes
-  const bookingHeading = isCcw ? 'Start Your Permit Pre-Check' : isInsurance ? 'Get Your Quote' : isCustomService ? 'Request a Booking' : 'Book Your Appointment'
-  const submitLabel = isCcw ? 'Check My Eligibility' : isInsurance ? 'Submit Quote Request' : isCustomService ? 'Submit Request' : 'Submit Appointment Request'
+  const bookingHeading = isCcw ? 'Start Your Permit Pre-Check' : isInsurance ? 'Get Your Quote' : isDryCleaner ? 'Schedule a Pickup' : isCustomService ? 'Request a Booking' : 'Book Your Appointment'
+  const submitLabel = isCcw ? 'Check My Eligibility' : isInsurance ? 'Submit Quote Request' : isDryCleaner ? 'Request Pickup' : isCustomService ? 'Submit Request' : 'Submit Appointment Request'
   const additionalDetailsPlaceholder = isGym
     ? 'Tell us more - fitness goals, class preferences, experience level, etc.'
     : isInsurance
     ? 'Tell us more - current coverage, vehicles/property to insure, budget, etc.'
     : isCcw
     ? 'Tell us what you need help with - new permit, renewal, state acceptance questions, application support, or firearms safety course access.'
+    : isDryCleaner
+    ? 'Tell us more - garment types, stains, rush service, pickup or delivery address, and any special instructions.'
     : isCustomService
     ? 'Tell us more about what you need, your preferred timing, and any useful context...'
     : 'Tell us more - vehicle of interest, type of service, etc.'
@@ -231,7 +253,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
               setTimeout(() => { document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth' }) }, 50)
             }}
             style={{ background: c, color: '#fff', padding: '11px 28px', borderRadius: 6, fontSize: 13, fontWeight: 600, textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
-            Book Now
+            {isDryCleaner ? 'Schedule Pickup' : isCcw ? 'Get Pre-Qualified' : isInsurance ? 'Get Quote' : 'Book Now'}
           </a>
         </div>
         <a className="lp-mobile-cta" href="#booking"
@@ -241,7 +263,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
             setTimeout(() => { document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth' }) }, 50)
           }}
           style={{ display: 'none', background: c, color: '#fff', padding: '11px 28px', borderRadius: 6, fontSize: 13, fontWeight: 600, textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
-          Book Now
+          {isDryCleaner ? 'Schedule Pickup' : isCcw ? 'Get Pre-Qualified' : isInsurance ? 'Get Quote' : 'Book Now'}
         </a>
       </nav>
 
@@ -259,10 +281,10 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
               <div>
                 <div className="anim-up" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, animation: 'pulse 2.5s ease infinite' }} />
-                  <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: '#A0A0A0' }}>{isGym ? 'Fitness Center' : isInsurance ? 'Insurance Agency' : isCustomService ? nicheLabel : 'Appointment Booking'}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: '#A0A0A0' }}>{isGym ? 'Fitness Center' : isInsurance ? 'Insurance Agency' : isDryCleaner ? 'Dry Cleaners' : isCustomService ? nicheLabel : 'Appointment Booking'}</span>
                 </div>
                 <h1 className="fd anim-up anim-d1" style={{ fontSize: 'clamp(44px, 5.5vw, 72px)', fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.03em', marginBottom: 28 }}>
-                  {isGym ? <>Your Fitness<br /><em style={{ fontStyle: 'italic', color: c }}>Starts Here</em></> : isInsurance ? <>Get the Coverage<br /><em style={{ fontStyle: 'italic', color: c }}>You Deserve</em></> : isCcw ? <>Start Your Permit<br /><em style={{ fontStyle: 'italic', color: c }}>Pre-Check</em></> : isCustomService ? <>Let's Get You<br /><em style={{ fontStyle: 'italic', color: c }}>Booked In</em></> : <>We'll Get You<br /><em style={{ fontStyle: 'italic', color: c }}>Booked In</em></>}
+                  {isGym ? <>Your Fitness<br /><em style={{ fontStyle: 'italic', color: c }}>Starts Here</em></> : isInsurance ? <>Get the Coverage<br /><em style={{ fontStyle: 'italic', color: c }}>You Deserve</em></> : isCcw ? <>Start Your Permit<br /><em style={{ fontStyle: 'italic', color: c }}>Pre-Check</em></> : isDryCleaner ? <>Fresh Clothes,<br /><em style={{ fontStyle: 'italic', color: c }}>Ready When You Are</em></> : isCustomService ? <>Let's Get You<br /><em style={{ fontStyle: 'italic', color: c }}>Booked In</em></> : <>We'll Get You<br /><em style={{ fontStyle: 'italic', color: c }}>Booked In</em></>}
                 </h1>
                 <p className="anim-up anim-d2" style={{ fontSize: 17, color: '#A0A0A0', lineHeight: 1.75, maxWidth: 500, marginBottom: 44, fontWeight: 300 }}>
                   {isGym
@@ -271,6 +293,8 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                     ? `Looking for a quote or policy review? Tell us what you need and we'll connect you with ${d.dealership_name} to find the right coverage for you.`
                     : isCcw
                     ? `Ready to start your concealed carry permit pre-qualification? Tell us what you need and we'll connect you with ${d.dealership_name} for application support.`
+                    : isDryCleaner
+                    ? `Need dry cleaning, wash and fold, or a pickup? Tell us what you need and we'll connect you with ${d.dealership_name} to schedule it.`
                     : isCustomService
                     ? `Tell us what you need and we'll connect you with ${d.dealership_name} to confirm the right appointment, booking, or consultation.`
                     : `Need a test drive or service appointment? Tell us what you need and we'll connect you with ${d.dealership_name} to confirm the earliest available slot.`}
@@ -278,7 +302,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                 <div className="anim-up anim-d3 lp-hero-ctas" style={{ display: 'flex', gap: 16 }}>
                   <a href="#booking" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '20px 40px', background: c, color: '#FFFFFF', borderRadius: 8, fontSize: 17, fontWeight: 700, textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' as const, boxShadow: `0 8px 30px ${c}33`, transition: 'all 0.3s ease' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    {isCcw ? 'Get Pre-Qualified' : isGym || isCustomService ? 'Get Started' : isInsurance ? 'Get a Quote' : 'Book an Appointment'}
+                    {isCcw ? 'Get Pre-Qualified' : isDryCleaner ? 'Schedule a Pickup' : isGym || isCustomService ? 'Get Started' : isInsurance ? 'Get a Quote' : 'Book an Appointment'}
                   </a>
                   <a href="#how" style={{ display: 'inline-flex', alignItems: 'center', padding: '18px 36px', background: 'transparent', color: '#E8E8E8', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, fontSize: 15, fontWeight: 500, textDecoration: 'none' }}>Learn More</a>
                 </div>
@@ -287,12 +311,12 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                 {d.hero_card_image && (
                   <div style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 40px 100px rgba(0,0,0,0.5)' }}>
                     <img src={d.hero_card_image} alt="" style={{ width: '100%', height: 380, objectFit: 'cover', display: 'block' }} />
-                    <div style={{ position: 'absolute', top: 20, right: 20, background: c, color: '#fff', padding: '8px 16px', borderRadius: 100, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>Now Booking</div>
+                    <div style={{ position: 'absolute', top: 20, right: 20, background: c, color: '#fff', padding: '8px 16px', borderRadius: 100, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>{isDryCleaner ? 'Pickup Available' : 'Now Booking'}</div>
                     <div style={{ position: 'absolute', bottom: 20, left: 20, right: 20, background: 'rgba(9,9,9,0.85)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
                       {d.logo_url && <img src={d.logo_url} alt="" style={{ width: 44, height: 44, objectFit: 'contain', background: '#fff', borderRadius: 8, padding: 5 }} />}
                       <div>
                         <strong style={{ fontSize: 15, display: 'block', marginBottom: 2 }}>{d.dealership_name}</strong>
-                        <span style={{ fontSize: 12, color: '#666' }}>{d.address_city ? `${d.address_city}, ${d.address_state}` : ''}{isGym ? ' • Fitness & Wellness' : isInsurance ? ' • Insurance & Financial Services' : isCustomService ? ` • ${nicheLabel}` : ' • New & Used Vehicles'}</span>
+                        <span style={{ fontSize: 12, color: '#666' }}>{d.address_city ? `${d.address_city}, ${d.address_state}` : ''}{isGym ? ' • Fitness & Wellness' : isInsurance ? ' • Insurance & Financial Services' : isDryCleaner ? ' • Dry Cleaning & Laundry' : isCustomService ? ` • ${nicheLabel}` : ' • New & Used Vehicles'}</span>
                       </div>
                     </div>
                   </div>
@@ -308,6 +332,10 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                 { icon: '\u{1F6E1}\uFE0F', title: 'Permit Assistance', sub: 'Guided application support' },
                 { icon: '\u{23F1}\uFE0F', title: 'Fast Pre-Check', sub: 'Designed for quick qualification' },
                 { icon: '\u{1F4AC}', title: 'SMS Updates', sub: 'Application reminders & confirmations' },
+              ] : isDryCleaner ? [
+                { icon: '\u{1F454}', title: 'Expert Garment Care', sub: 'Cleaning, pressing, and repairs' },
+                { icon: '\u{1F69A}', title: 'Pickup & Delivery', sub: 'We can come to you' },
+                { icon: '\u{1F4AC}', title: 'SMS Ready Alerts', sub: 'Notified when your order is done' },
               ] : isCustomService ? [
                 { icon: '📅', title: `${nicheLabel} Specialist`, sub: 'Personalized support' },
                 { icon: '⏱️', title: 'Fast Response', sub: 'Confirmation within hours' },
@@ -341,12 +369,16 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
             <div style={{ maxWidth: 1000, margin: '0 auto' }}>
               <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>Simple Process</p>
               <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 16, lineHeight: 1.1 }}>How It Works</h2>
-              <p className="lp-reveal lp-d2" style={{ fontSize: 16, color: '#A0A0A0', maxWidth: 500, marginBottom: 64, fontWeight: 300, lineHeight: 1.7 }}>Three easy steps to secure your spot at {d.dealership_name}.</p>
+              <p className="lp-reveal lp-d2" style={{ fontSize: 16, color: '#A0A0A0', maxWidth: 500, marginBottom: 64, fontWeight: 300, lineHeight: 1.7 }}>{isDryCleaner ? `Three easy steps to get your clothes taken care of at ${d.dealership_name}.` : `Three easy steps to secure your spot at ${d.dealership_name}.`}</p>
               <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
                 {(isCcw ? [
                   { num: '01', title: 'See If You Qualify', desc: 'Share the basic details needed to understand your concealed carry permit application path.' },
                   { num: '02', title: 'Use the Application Portal', desc: "Choose a time and we'll coordinate the next step for application assistance and firearms safety course access." },
                   { num: '03', title: 'Get Guided Support', desc: `We work directly with ${d.dealership_name} to confirm your request and send application-related updates by SMS if you opt in.` },
+                ] : isDryCleaner ? [
+                  { num: '01', title: 'Choose Your Service', desc: 'Dry cleaning, wash and fold, alterations, or pickup and delivery. Tell us what you need done.' },
+                  { num: '02', title: 'Pick a Pickup Time', desc: "Choose when we should collect your garments, or when you plan to drop them off." },
+                  { num: '03', title: 'We Confirm and Text You', desc: `We work directly with ${d.dealership_name} to confirm your request and send ready or delivery updates by SMS if you opt in.` },
                 ] : isCustomService ? [
                   { num: '01', title: 'Tell Us What You Need', desc: `Tell us what kind of ${nicheLabel.toLowerCase()} help you need and share any important details.` },
                   { num: '02', title: 'Pick Your Preferred Time', desc: "Select a convenient time and we'll coordinate with the business to match your schedule." },
@@ -379,9 +411,9 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           {isCustomService ? (
             <section id="services" className="lp-section" style={{ padding: '120px 48px', background: '#111' }}>
               <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-                <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>{isCcw ? 'Application Support' : 'What We Offer'}</p>
-                <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 16, lineHeight: 1.1 }}>{isCcw ? 'Permit Assistance' : 'Services & Consultations'}</h2>
-                <p className="lp-reveal lp-d2" style={{ fontSize: 16, color: '#A0A0A0', maxWidth: 500, marginBottom: 64, fontWeight: 300, lineHeight: 1.7 }}>{isCcw ? `Explore the permit pre-qualification, application assistance, and firearms safety support available through ${d.dealership_name}.` : `Explore the ${nicheLabel.toLowerCase()} services available at ${d.dealership_name}.`}</p>
+                <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>{isCcw ? 'Application Support' : isDryCleaner ? 'Garment Care' : 'What We Offer'}</p>
+                <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 16, lineHeight: 1.1 }}>{isCcw ? 'Permit Assistance' : isDryCleaner ? 'Cleaning Services' : 'Services & Consultations'}</h2>
+                <p className="lp-reveal lp-d2" style={{ fontSize: 16, color: '#A0A0A0', maxWidth: 500, marginBottom: 64, fontWeight: 300, lineHeight: 1.7 }}>{isCcw ? `Explore the permit pre-qualification, application assistance, and firearms safety support available through ${d.dealership_name}.` : isDryCleaner ? `Explore dry cleaning, wash and fold, pickup and delivery, and alteration services at ${d.dealership_name}.` : `Explore the ${nicheLabel.toLowerCase()} services available at ${d.dealership_name}.`}</p>
                 <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(customServices.length, 3)}, 1fr)`, gap: 24 }}>
                   {customServices.map((s, i) => (
                     <div key={i} className={`lp-reveal ${i > 0 ? `lp-d${i}` : ''}`}
@@ -492,7 +524,15 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>What can we help you with?</label>
                   <select className="lp-input" defaultValue="">
                     <option value="" disabled>Select an option</option>
-                    {isCustomService ? (<>
+                    {isDryCleaner ? (<>
+                      <option>Schedule a Pickup</option>
+                      <option>Drop Off / Counter Service</option>
+                      <option>Dry Cleaning</option>
+                      <option>Wash & Fold</option>
+                      <option>Alterations / Repairs</option>
+                      <option>Delivery Request</option>
+                      <option>General Question</option>
+                    </>) : isCustomService ? (<>
                       {customServices.map(s => <option key={s.name}>{s.name}</option>)}
                       <option>General Question</option>
                     </>) : isGym ? (<>
@@ -520,11 +560,11 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                 </div>
                 <div className="lp-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Preferred Date</label>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>{isDryCleaner ? 'Preferred Pickup Date' : 'Preferred Date'}</label>
                     <input className="lp-input" type="date" min={new Date().toISOString().split('T')[0]} onChange={handleDateChange} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Preferred Time</label>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>{isDryCleaner ? 'Preferred Pickup Time' : 'Preferred Time'}</label>
                     <select className="lp-input" defaultValue="">
                       <option value="" disabled>Select a time</option>
                       {times.map(t => <option key={t}>{t}</option>)}
@@ -533,7 +573,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                 </div>
                 <div style={{ marginBottom: 20 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 8 }}>Additional Details</label>
-                  <textarea className="lp-input" placeholder={isGym ? "Tell us more — fitness goals, class preferences, experience level, etc." : isInsurance ? "Tell us more — current coverage, vehicles/property to insure, budget, etc." : isCustomService ? "Tell us more about what you need, your preferred timing, and any useful context..." : "Tell us more — vehicle of interest, type of service, etc."} style={{ minHeight: 100, resize: 'vertical' }} />
+                  <textarea className="lp-input" placeholder={additionalDetailsPlaceholder} style={{ minHeight: 100, resize: 'vertical' }} />
                 </div>
 
                 {/* Birthdate Verification (CCW only) */}
@@ -570,14 +610,59 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                   </div>
                 )}
 
-                {/* SMS Consent */}
+                {/* Legal confirmations — required, separate from SMS opt-in */}
+                <div style={{ marginTop: 28, padding: 24, border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, background: 'rgba(255,255,255,0.015)' }}>
+                  <p style={{ fontSize: 15, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.12em', color: '#E8E8E8', marginBottom: 14 }}>Terms &amp; Privacy Confirmations</p>
+                  <p style={{ fontSize: 14, lineHeight: 1.7, color: '#999', marginBottom: 18 }}>
+                    Before submitting, please review and confirm the legal documents for {d.legal_entity_name || d.dealership_name}. These confirmations are separate from optional SMS consent.
+                  </p>
+                  <p style={{ fontSize: 13, marginBottom: 18 }}>
+                    <a href="#" onClick={(e) => { e.preventDefault(); showPage('privacy') }} style={{ color: c, textDecoration: 'none', fontWeight: 500 }}>Privacy Policy</a>
+                    <span style={{ color: '#666' }}> | </span>
+                    <a href="#" onClick={(e) => { e.preventDefault(); showPage('terms') }} style={{ color: c, textDecoration: 'none', fontWeight: 500 }}>Terms &amp; Conditions</a>
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                      <input
+                        id="terms-accepted-checkbox"
+                        name="terms_accepted"
+                        type="checkbox"
+                        required
+                        onChange={(e) => e.currentTarget.setCustomValidity('')}
+                        style={{ marginTop: 3, width: 18, height: 18, accentColor: c, flexShrink: 0, cursor: 'pointer' }}
+                      />
+                      <label htmlFor="terms-accepted-checkbox" style={{ fontSize: 15, lineHeight: 1.65, color: '#B0B0B0', cursor: 'pointer' }}>
+                        I have read and agree to the{' '}
+                        <a href="#" onClick={(e) => { e.preventDefault(); showPage('terms') }} style={{ color: c, textDecoration: 'none', fontWeight: 500 }}>Terms &amp; Conditions</a>
+                        . This confirmation is required to submit this form.
+                      </label>
+                    </div>
+                    <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                      <input
+                        id="privacy-accepted-checkbox"
+                        name="privacy_accepted"
+                        type="checkbox"
+                        required
+                        onChange={(e) => e.currentTarget.setCustomValidity('')}
+                        style={{ marginTop: 3, width: 18, height: 18, accentColor: c, flexShrink: 0, cursor: 'pointer' }}
+                      />
+                      <label htmlFor="privacy-accepted-checkbox" style={{ fontSize: 15, lineHeight: 1.65, color: '#B0B0B0', cursor: 'pointer' }}>
+                        I have read and agree to the{' '}
+                        <a href="#" onClick={(e) => { e.preventDefault(); showPage('privacy') }} style={{ color: c, textDecoration: 'none', fontWeight: 500 }}>Privacy Policy</a>
+                        . This confirmation is required to submit this form.
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SMS Consent — optional, not bundled with legal acceptances */}
                 <div style={{ marginTop: 28, padding: 24, border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, background: 'rgba(255,255,255,0.015)' }}>
                   <p style={{ fontSize: 15, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.12em', color: '#E8E8E8', marginBottom: 14 }}>SMS Communications Consent</p>
                   <p style={{ fontSize: 15, lineHeight: 1.75, color: '#999', marginBottom: 14 }}>{smsConsentText}</p>
                   <p style={{ fontSize: 13, marginBottom: 18 }}>
                     <a href="#" onClick={(e) => { e.preventDefault(); showPage('privacy') }} style={{ color: c, textDecoration: 'none', fontWeight: 500 }}>Privacy Policy</a>
                     <span style={{ color: '#666' }}> | </span>
-                    <a href="#" onClick={(e) => { e.preventDefault(); showPage('terms') }} style={{ color: c, textDecoration: 'none', fontWeight: 500 }}>Terms & Conditions</a>
+                    <a href="#" onClick={(e) => { e.preventDefault(); showPage('terms') }} style={{ color: c, textDecoration: 'none', fontWeight: 500 }}>Terms &amp; Conditions</a>
                   </p>
                   <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                     <input
@@ -590,7 +675,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
                       {smsCheckboxLabel}
                     </label>
                   </div>
-                  <p style={{ fontSize: 12, lineHeight: 1.6, color: '#666', marginTop: 12 }}>Checking this box is optional and is not required to submit this form. We will only send SMS messages to the phone number provided if you opt in.</p>
+                  <p style={{ fontSize: 12, lineHeight: 1.6, color: '#666', marginTop: 12 }}>Checking this box is optional and is not required to submit this form. We will only send SMS messages to the phone number provided if you opt in. SMS consent is separate from the Terms and Privacy confirmations above.</p>
                 </div>
 
                 <button type="submit" disabled={submitting}
@@ -610,7 +695,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           <section id="info" className="lp-section" style={{ padding: '120px 48px', background: '#111' }}>
             <div className="lp-2col" style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'start' }}>
               <div>
-                <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>{isGym ? 'Gym Details' : isInsurance ? 'Agency Details' : isCustomService ? 'Business Details' : 'Dealership Details'}</p>
+                <p className="lp-reveal" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: c, marginBottom: 16 }}>{isGym ? 'Gym Details' : isInsurance ? 'Agency Details' : isDryCleaner ? 'Shop Details' : isCustomService ? 'Business Details' : 'Dealership Details'}</p>
                 <h2 className="fd lp-reveal lp-d1" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 40, lineHeight: 1.1 }}>{d.dealership_name}</h2>
                 {d.address_full && (
                   <div className="lp-reveal lp-d2" style={{ display: 'flex', gap: 18, alignItems: 'flex-start', marginBottom: 32 }}>
@@ -667,7 +752,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
             <h2 style={{ fontSize: 18, fontWeight: 600, margin: '36px 0 12px', color: '#E8E8E8' }}>4. Data Security</h2>
             <p style={{ marginBottom: 16 }}>We are committed to protecting your personal information using industry-standard security measures.</p>
             <h2 style={{ fontSize: 18, fontWeight: 600, margin: '36px 0 12px', color: '#E8E8E8' }}>5. SMS / Text Messaging Program</h2>
-            <p style={{ marginBottom: 16 }}>When you provide your mobile phone number through a form on this website and check the SMS consent box, you agree to receive recurring text messages from {d.legal_entity_name}{d.dba_name ? ` (DBA ${d.dba_name})` : ''}, including {isCcw ? 'permit application assistance updates, qualification reminders, training-course access notifications' : 'appointment confirmations, reminders'}, and account-related notifications. Consent is not a condition of purchase.</p>
+            <p style={{ marginBottom: 16 }}>When you provide your mobile phone number through a form on this website and check the SMS consent box, you agree to receive recurring text messages from {d.legal_entity_name}{d.dba_name ? ` (DBA ${d.dba_name})` : ''}, including {customerCareMessageTypes(d.business_type)}, and account-related notifications. Consent is not a condition of purchase.</p>
             <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Message frequency:</strong> Message frequency may vary based on your interactions with us.</p>
             <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Costs:</strong> Message and data rates may apply. Check with your mobile carrier for details.</p>
             <p style={{ marginBottom: 16 }}><strong style={{ color: '#E8E8E8', fontWeight: 500 }}>Help:</strong> Reply HELP for help{d.phone_sms_help ? ` or call ${d.phone_sms_help}` : ''}{d.email ? ` or email ${d.email}` : ''}.</p>
@@ -686,7 +771,7 @@ export default function LandingPage({ dealer: d }: { dealer: Dealership }) {
           <h1 className="fd" style={{ fontSize: 40, fontWeight: 500, marginBottom: 8, letterSpacing: '-0.02em' }}>Terms and Conditions</h1>
           <p style={{ fontSize: 13, color: '#333', marginBottom: 48 }}>Effective Date: {d.terms_effective_date || 'Sep 15, 2025'}</p>
           <ol style={{ listStyle: 'decimal', paddingLeft: 20, fontSize: 14, color: '#666', lineHeight: 1.85, fontWeight: 300 }}>
-            <li style={{ marginBottom: 12 }}>This SMS program sends recurring automated {isCcw ? 'permit application assistance updates, qualification reminders, training-course access notifications' : 'appointment confirmations, booking confirmations, reminders, rescheduling notifications'}, and other account-related updates from {d.legal_entity_name} {d.dba_name ? `(DBA ${d.dba_name})` : ''} (website: {d.subdomain}.visquanta.com) to customers who have opted in. No promotional or marketing messages are sent.</li>
+            <li style={{ marginBottom: 12 }}>This SMS program sends recurring automated {customerCareMessageTypes(d.business_type)}, and other account-related updates from {d.legal_entity_name} {d.dba_name ? `(DBA ${d.dba_name})` : ''} (website: {d.subdomain}.visquanta.com) to customers who have opted in. No promotional or marketing messages are sent.</li>
             <li style={{ marginBottom: 12 }}>You can cancel at any time by replying STOP.</li>
             <li style={{ marginBottom: 12 }}>If you experience issues, reply HELP for assistance{d.phone_sms_help ? ` or call ${d.phone_sms_help}` : ''}{d.email ? ` or email ${d.email}` : ''}.</li>
             <li style={{ marginBottom: 12 }}>Carriers are not liable for delayed or undelivered messages.</li>

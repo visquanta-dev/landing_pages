@@ -2,20 +2,13 @@
  * Generate all SMS/legal copy from just two fields.
  * The copy is ALWAYS the same - only the business names change.
  */
-import { isTradingEducationBusiness } from './site-niche'
+import { customerCareMessageTypes, isDryCleanerBusiness } from './site-niche'
 
 export function generateSmsTemplates(legalEntityName: string, dbaName: string, phoneHelp?: string, email?: string, businessType?: string) {
   const legal = legalEntityName
   const dba = dbaName
   const brandLabel = `${legal}${dba && dba !== legal ? ` (DBA ${dba})` : ''}`
-  const normalizedType = (businessType || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-  const isCcw = normalizedType === 'ccw' || normalizedType.includes('concealed-carry') || normalizedType.includes('permit-assistance')
-  const isTradingEducation = isTradingEducationBusiness(normalizedType)
-  const messageTypes = isCcw
-    ? 'permit application assistance updates, qualification reminders, training-course access notifications, appointment confirmations, and account-related service notifications'
-    : isTradingEducation
-    ? 'trading education updates, educational content notifications, member account updates, appointment confirmations, reminders, support follow-ups, and account-related service notifications'
-    : 'appointment confirmations, booking confirmations, reminders, rescheduling updates, missed appointment follow-ups, and account-related service notifications'
+  const messageTypes = customerCareMessageTypes(businessType)
 
   return {
     sms_consent_text: `By checking this optional SMS consent box and submitting this form, you agree to receive recurring customer care text messages from ${brandLabel}, including ${messageTypes}. Message frequency varies based on your requests and appointments. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. We will not share your SMS opt-in or consent status with third parties for purposes unrelated to providing these messaging services.`,
@@ -33,7 +26,7 @@ export function generateSmsTemplates(legalEntityName: string, dbaName: string, p
 /**
  * Generate derived fields from core dealer info
  */
-export function generateDerivedFields(dealershipName: string, legalEntityName?: string, dbaName?: string) {
+export function generateDerivedFields(dealershipName: string, legalEntityName?: string, dbaName?: string, businessType?: string) {
   const name = dealershipName
   const legal = legalEntityName || `${name} LLC`
   const dba = dbaName || name
@@ -43,7 +36,7 @@ export function generateDerivedFields(dealershipName: string, legalEntityName?: 
     legal_entity_name: legal,
     dba_name: dba,
     subdomain,
-    page_title: `Book Your Appointment | ${name}`,
+    page_title: isDryCleanerBusiness(businessType) ? `Schedule a Pickup | ${name}` : `Book Your Appointment | ${name}`,
     email: `contact@${subdomain}.visquanta.com`,
   }
 }

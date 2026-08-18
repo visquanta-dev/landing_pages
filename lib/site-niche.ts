@@ -9,6 +9,7 @@ export const BUSINESS_TYPE_OPTIONS = [
   { value: 'gym', label: 'Gym / Fitness Center' },
   { value: 'insurance', label: 'Insurance Agency' },
   { value: 'ccw', label: 'CCW / Permit Assistance' },
+  { value: 'drycleaners', label: 'Dry Cleaners' },
   { value: 'solar', label: 'Solar / Energy' },
   { value: 'disability', label: 'Disability Services' },
   { value: 'travel', label: 'Travel / Tickets' },
@@ -54,6 +55,34 @@ export function isTradingEducationBusiness(value?: string | null) {
   return type === 'trading-education' || type === 'trading-course' || type === 'trading-academy' || type === 'forex-education'
 }
 
+export function isDryCleanerBusiness(value?: string | null) {
+  const type = normalizeBusinessType(value)
+  return (
+    type === 'drycleaners' ||
+    type === 'dry-cleaners' ||
+    type === 'dry-cleaner' ||
+    type === 'drycleaner' ||
+    type === 'dry-cleaning' ||
+    type === 'laundry' ||
+    type === 'laundromat' ||
+    type.includes('dry-clean') ||
+    type.includes('wash-and-fold')
+  )
+}
+
+export function customerCareMessageTypes(value?: string | null) {
+  if (isCcwBusiness(value)) {
+    return 'permit application assistance updates, qualification reminders, training-course access notifications, appointment confirmations, and account-related service notifications'
+  }
+  if (isTradingEducationBusiness(value)) {
+    return 'trading education updates, educational content notifications, member account updates, appointment confirmations, reminders, support follow-ups, and account-related service notifications'
+  }
+  if (isDryCleanerBusiness(value)) {
+    return 'pickup confirmations, order-ready notifications, delivery updates, alteration status updates, missed pickup follow-ups, and account-related service notifications'
+  }
+  return 'appointment confirmations, booking confirmations, reminders, rescheduling updates, missed appointment follow-ups, and account-related service notifications'
+}
+
 export function isServiceBusiness(value?: string | null) {
   const type = normalizeBusinessType(value)
   return type !== 'dealership' && type !== 'insurance'
@@ -73,6 +102,14 @@ export function defaultServicesForBusinessType(value?: string | null): ServiceIt
       { name: 'Trading Education', description: 'Access educational resources that explain trading concepts, market structure, and risk management.' },
       { name: 'Market Walkthroughs', description: 'Review educational market walkthroughs designed to help members understand trading setups and context.' },
       { name: 'Member Support', description: 'Get help with account access, educational content, and service questions.' },
+    ]
+  }
+  if (isDryCleanerBusiness(type)) {
+    return [
+      { name: 'Dry Cleaning', description: 'Professional cleaning and pressing for suits, dresses, coats, and delicate garments.' },
+      { name: 'Wash & Fold', description: 'Everyday laundry washed, dried, and folded so it is ready to put away.' },
+      { name: 'Pickup & Delivery', description: 'Schedule a pickup at home or work and have finished garments delivered back to you.' },
+      { name: 'Alterations & Repairs', description: 'Hems, zippers, buttons, and simple repairs handled with your cleaning order.' },
     ]
   }
   if (type.includes('solar') || type.includes('energy')) {
@@ -107,6 +144,8 @@ export function inferBusinessTypeFromText(text: string) {
   const haystack = text.toLowerCase()
 
   if (/\b(trading education|trading course|trading courses|trading academy|forex education|learn to trade|market education|trading mentorship|trading training)\b/.test(haystack)) return 'trading-education'
+
+  if (/\b(dry\s*clean(?:er|ers|ing)?|dry-clean(?:er|ers|ing)?|laundromat|wash\s*(?:and|&)\s*fold|garment care|shirt laundry|coin laundry)\b/.test(haystack)) return 'drycleaners'
 
   // Dealership is checked first because car-dealer pages routinely use generic
   // insurance-adjacent words ("warranty coverage", "request a quote", "premium trim")

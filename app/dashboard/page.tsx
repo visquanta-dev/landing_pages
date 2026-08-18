@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import type { Dealership } from '@/lib/supabase'
 import DealerForm from '@/components/DealerForm'
-import { BUSINESS_TYPE_OPTIONS, businessTypeLabel, isCcwBusiness, isGymBusiness, isInsuranceBusiness, isServiceBusiness, normalizeBusinessType } from '@/lib/site-niche'
+import { BUSINESS_TYPE_OPTIONS, businessTypeLabel, isCcwBusiness, isDryCleanerBusiness, isGymBusiness, isInsuranceBusiness, isServiceBusiness, normalizeBusinessType } from '@/lib/site-niche'
 
 export default function DashboardPage() {
   const [dealerships, setDealerships] = useState<Dealership[]>([])
@@ -24,7 +24,11 @@ export default function DashboardPage() {
 
   const filtered = typeFilter === 'all'
     ? dealerships
-    : dealerships.filter(d => typeFilter === 'ccw' ? isCcwBusiness(d.business_type) : normalizeBusinessType(d.business_type) === normalizeBusinessType(typeFilter))
+    : dealerships.filter(d => typeFilter === 'ccw'
+      ? isCcwBusiness(d.business_type)
+      : typeFilter === 'drycleaners'
+      ? isDryCleanerBusiness(d.business_type)
+      : normalizeBusinessType(d.business_type) === normalizeBusinessType(typeFilter))
   const knownBusinessTypes = new Set(BUSINESS_TYPE_OPTIONS.map(option => normalizeBusinessType(option.value)))
   const customTypes = Array.from(new Set(dealerships.map(d => d.business_type || 'dealership'))).filter(t => !knownBusinessTypes.has(normalizeBusinessType(t)) && !isCcwBusiness(t))
 
@@ -180,6 +184,7 @@ export default function DashboardPage() {
             <option value="gym" style={{ background: '#111' }}>Gyms</option>
             <option value="insurance" style={{ background: '#111' }}>Insurance</option>
             <option value="ccw" style={{ background: '#111' }}>CCW / Permit Assistance</option>
+            <option value="drycleaners" style={{ background: '#111' }}>Dry Cleaners</option>
             {customTypes.map(type => <option key={type} value={type} style={{ background: '#111' }}>{businessTypeLabel(type)}</option>)}
           </select>
           <button

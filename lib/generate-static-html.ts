@@ -1,5 +1,5 @@
 import type { Dealership } from './supabase'
-import { businessTypeLabel, defaultServicesForBusinessType, isServiceBusiness, normalizeBusinessType } from './site-niche'
+import { businessTypeLabel, customerCareMessageTypes, defaultServicesForBusinessType, isDryCleanerBusiness, isServiceBusiness, normalizeBusinessType } from './site-niche'
 
 function adjustColor(hex: string, amount: number): string {
   hex = hex.replace('#', '')
@@ -75,6 +75,7 @@ function navHTML(d: Dealership, c: string): string {
   const isTickets = ['ticketsthatcheap'].includes(d.subdomain)
   const businessType = normalizeBusinessType(d.business_type)
   const isCcw = businessType === 'ccw' || businessType.includes('concealed-carry') || businessType.includes('permit-assistance')
+  const isDryCleaner = isDryCleanerBusiness(d.business_type)
   const isCustomService = isServiceBusiness(d.business_type) && !isGym && !isTickets
   const linkStyle = `color:#A0A0A0;text-decoration:none;font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase`
   const thirdLink = isTickets
@@ -86,7 +87,7 @@ function navHTML(d: Dealership, c: string): string {
     : isInsurance
     ? `<a href="/#products" style="${linkStyle}">Coverage</a>`
     : `<a href="/#vehicles" style="${linkStyle}">Vehicles</a>`
-  const ctaLabel = isCcw ? 'Get Pre-Qualified' : isTickets ? 'Find Tickets' : isInsurance ? 'Get Quote' : isCustomService ? 'Get Started' : 'Book Now'
+  const ctaLabel = isCcw ? 'Get Pre-Qualified' : isTickets ? 'Find Tickets' : isInsurance ? 'Get Quote' : isDryCleaner ? 'Schedule Pickup' : isCustomService ? 'Get Started' : 'Book Now'
 
   return `<nav id="lp-nav">
     <a href="/" style="display:flex;align-items:center;gap:14px;text-decoration:none">
@@ -164,6 +165,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
   const isTickets = ['ticketsthatcheap'].includes(d.subdomain)
   const businessType = normalizeBusinessType(d.business_type)
   const isCcw = businessType === 'ccw' || businessType.includes('concealed-carry') || businessType.includes('permit-assistance')
+  const isDryCleaner = isDryCleanerBusiness(d.business_type)
   const nicheLabel = businessTypeLabel(d.business_type)
   const isCustomService = isServiceBusiness(d.business_type) && !isGym && !isTickets
 
@@ -177,7 +179,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       ? `By checking the optional SMS consent box and providing your phone number, you consent to receive recurring text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''}, including booking confirmations, trip itinerary updates, travel reminders, and account-related notifications. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.`
       : isCcw
       ? `By checking the optional SMS consent box and providing your phone number, you consent to receive recurring text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''}, including permit application assistance updates, qualification reminders, training-course access notifications, appointment confirmations, and account-related messages. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.`
-      : `By checking the optional SMS consent box and providing your phone number, you consent to receive recurring text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''}, including appointment confirmations, booking confirmations, reminders, rescheduling notifications, and account-related updates. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.`)
+      : `By checking the optional SMS consent box and providing your phone number, you consent to receive recurring text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''}, including ${customerCareMessageTypes(d.business_type)}. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Consent is not a condition of purchase. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.`)
   const smsCheckboxLabel =
     d.sms_checkbox_label ||
     `I agree to receive recurring text messages from ${d.legal_entity_name || d.dealership_name}${d.dba_name && d.dba_name !== d.legal_entity_name ? ` (DBA ${d.dba_name})` : ''} at the phone number provided. Message frequency may vary. Message and data rates may apply. Reply HELP for help. Reply STOP to unsubscribe. Checking this box is not required to submit this form.`
@@ -210,7 +212,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     </section>
   `
   } else if (isCustomService) {
-    const customIcon = isCcw ? '\u{1F6E1}\uFE0F' : businessType.includes('solar') || businessType.includes('energy') ? '\u2600\uFE0F' : '\u{1F4C5}'
+    const customIcon = isCcw ? '\u{1F6E1}\uFE0F' : isDryCleaner ? '\u{1F454}' : businessType.includes('solar') || businessType.includes('energy') ? '\u2600\uFE0F' : '\u{1F4C5}'
     const customServices = (d.services && d.services.length > 0)
       ? d.services.map(s => ({ name: s.name, icon: customIcon, desc: s.description }))
       : defaultServicesForBusinessType(d.business_type).map(s => ({ name: s.name, icon: customIcon, desc: s.description }))
@@ -218,9 +220,9 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     middleSectionHTML = `
     <section id="services" class="lp-section" style="padding:120px 48px;background:#111">
       <div style="max-width:1280px;margin:0 auto">
-        <p class="lp-reveal" style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:${esc(c)};margin-bottom:16px">${isCcw ? 'Application Support' : 'What We Offer'}</p>
-        <h2 class="fd lp-reveal lp-d1" style="font-size:clamp(32px,4vw,48px);font-weight:500;letter-spacing:-0.02em;margin-bottom:16px;line-height:1.1">${isCcw ? 'Permit Assistance' : 'Services &amp; Consultations'}</h2>
-        <p class="lp-reveal lp-d2" style="font-size:16px;color:#A0A0A0;max-width:500px;margin-bottom:64px;font-weight:300;line-height:1.7">${isCcw ? `Explore the permit pre-qualification, application assistance, and firearms safety support available through ${esc(d.dealership_name)}.` : `Explore the ${esc(nicheLabel.toLowerCase())} services available at ${esc(d.dealership_name)}.`}</p>
+        <p class="lp-reveal" style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:${esc(c)};margin-bottom:16px">${isCcw ? 'Application Support' : isDryCleaner ? 'Garment Care' : 'What We Offer'}</p>
+        <h2 class="fd lp-reveal lp-d1" style="font-size:clamp(32px,4vw,48px);font-weight:500;letter-spacing:-0.02em;margin-bottom:16px;line-height:1.1">${isCcw ? 'Permit Assistance' : isDryCleaner ? 'Cleaning Services' : 'Services &amp; Consultations'}</h2>
+        <p class="lp-reveal lp-d2" style="font-size:16px;color:#A0A0A0;max-width:500px;margin-bottom:64px;font-weight:300;line-height:1.7">${isCcw ? `Explore the permit pre-qualification, application assistance, and firearms safety support available through ${esc(d.dealership_name)}.` : isDryCleaner ? `Explore dry cleaning, wash and fold, pickup and delivery, and alteration services at ${esc(d.dealership_name)}.` : `Explore the ${esc(nicheLabel.toLowerCase())} services available at ${esc(d.dealership_name)}.`}</p>
         <div class="lp-3col" style="display:grid;grid-template-columns:repeat(${Math.min(customServices.length, 3)},1fr);gap:24px">
           ${customServices.map((s, i) => `
             <div class="lp-reveal${i > 0 ? ` lp-d${i}` : ''}" style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:40px 32px;text-align:center">
@@ -429,6 +431,32 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     </div>
   ` : ''
 
+  const legalConfirmationsHTML = `
+    <div style="margin-top:28px;padding:24px;border:1px solid rgba(255,255,255,0.06);border-radius:12px;background:rgba(255,255,255,0.015)">
+      <p style="font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#E8E8E8;margin-bottom:14px">Terms &amp; Privacy Confirmations</p>
+      <p style="font-size:14px;line-height:1.7;color:#999;margin-bottom:18px">Before submitting, please review and confirm the legal documents for ${esc(d.legal_entity_name || d.dealership_name)}. These confirmations are separate from optional SMS consent.</p>
+      <p style="font-size:13px;margin-bottom:18px">
+        <a href="/privacy-policy" style="color:${esc(c)};text-decoration:none;font-weight:500">Privacy Policy</a>
+        |
+        <a href="/terms-and-conditions" style="color:${esc(c)};text-decoration:none;font-weight:500">Terms &amp; Conditions</a>
+      </p>
+      <div style="display:flex;flex-direction:column;gap:16px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.06)">
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <input id="terms-accepted-checkbox" name="terms_accepted" type="checkbox" value="yes" required style="margin-top:3px;width:18px;height:18px;accent-color:${esc(c)};flex-shrink:0;cursor:pointer" />
+          <label for="terms-accepted-checkbox" style="font-size:15px;line-height:1.65;color:#B0B0B0;cursor:pointer">
+            I have read and agree to the <a href="/terms-and-conditions" style="color:${esc(c)};text-decoration:none;font-weight:500">Terms &amp; Conditions</a>. This confirmation is required to submit this form.
+          </label>
+        </div>
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <input id="privacy-accepted-checkbox" name="privacy_accepted" type="checkbox" value="yes" required style="margin-top:3px;width:18px;height:18px;accent-color:${esc(c)};flex-shrink:0;cursor:pointer" />
+          <label for="privacy-accepted-checkbox" style="font-size:15px;line-height:1.65;color:#B0B0B0;cursor:pointer">
+            I have read and agree to the <a href="/privacy-policy" style="color:${esc(c)};text-decoration:none;font-weight:500">Privacy Policy</a>. This confirmation is required to submit this form.
+          </label>
+        </div>
+      </div>
+    </div>
+  `
+
   const smsConsentHTML = `
     <div style="margin-top:28px;padding:24px;border:1px solid rgba(255,255,255,0.06);border-radius:12px;background:rgba(255,255,255,0.015)">
       <p style="font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#E8E8E8;margin-bottom:14px">SMS Communications Consent</p>
@@ -444,7 +472,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
           ${esc(smsCheckboxLabel)}
         </label>
       </div>
-      <p style="font-size:12px;line-height:1.6;color:#666;margin-top:12px">Checking this box is optional and is not required to submit this form. We will only send SMS messages to the phone number provided if you opt in.</p>
+      <p style="font-size:12px;line-height:1.6;color:#666;margin-top:12px">Checking this box is optional and is not required to submit this form. We will only send SMS messages to the phone number provided if you opt in. SMS consent is separate from the Terms and Privacy confirmations above.</p>
     </div>
   `
 
@@ -457,13 +485,15 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? `Get an insurance quote or schedule a policy review with ${esc(d.dealership_name)}. We'll help you find the right coverage.`
     : isCcw
     ? `Start concealed carry permit pre-qualification and application assistance with ${esc(d.dealership_name)}.`
+    : isDryCleaner
+    ? `Schedule dry cleaning, wash and fold, or a pickup with ${esc(d.dealership_name)}. We'll confirm the next step for you.`
     : isCustomService
     ? `Book a consultation, appointment, or service request with ${esc(d.dealership_name)}. We'll confirm the next step for you.`
     : isTrajector
     ? `Book an appointment with ${esc(d.dealership_name)}. We'll confirm the earliest available slot for you.`
     : `Book a test drive or service appointment at ${esc(d.dealership_name)}. We'll confirm the earliest available slot for you.`
 
-  const heroSubtitle = isTickets ? 'Travel Deals' : isGym ? 'Fitness Center' : isInsurance ? 'Insurance Agency' : isCcw ? 'CCW Permit Assistance' : isCustomService ? nicheLabel : 'Appointment Booking'
+  const heroSubtitle = isTickets ? 'Travel Deals' : isGym ? 'Fitness Center' : isInsurance ? 'Insurance Agency' : isCcw ? 'CCW Permit Assistance' : isDryCleaner ? 'Dry Cleaners' : isCustomService ? nicheLabel : 'Appointment Booking'
   const heroHeading = isTickets
     ? `Cheap Tickets,<br><em style="font-style:italic;color:${esc(c)}">Anywhere</em>`
     : isGym
@@ -472,6 +502,8 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? `Get the Coverage<br><em style="font-style:italic;color:${esc(c)}">You Deserve</em>`
     : isCcw
     ? `Start Your Permit<br><em style="font-style:italic;color:${esc(c)}">Pre-Check</em>`
+    : isDryCleaner
+    ? `Fresh Clothes,<br><em style="font-style:italic;color:${esc(c)}">Ready When You Are</em>`
     : isCustomService
     ? `Let's Get You<br><em style="font-style:italic;color:${esc(c)}">Booked In</em>`
     : `We'll Get You<br><em style="font-style:italic;color:${esc(c)}">Booked In</em>`
@@ -483,12 +515,14 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? `Looking for a quote or policy review? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to find the right coverage for you.`
     : isCcw
     ? `Ready to start your concealed carry permit pre-qualification? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} for application support.`
+    : isDryCleaner
+    ? `Need dry cleaning, wash and fold, or a pickup? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to schedule it.`
     : isCustomService
     ? `Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to confirm the right appointment, booking, or consultation.`
     : isTrajector
     ? `Need an appointment? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to confirm the earliest available slot.`
     : `Need a test drive or service appointment? Tell us what you need and we'll connect you with ${esc(d.dealership_name)} to confirm the earliest available slot.`
-  const heroCta = isCcw ? 'Get Pre-Qualified' : isTickets ? 'Find My Trip' : isGym ? 'Get Started' : isInsurance ? 'Get a Quote' : isCustomService ? 'Get Started' : 'Book an Appointment'
+  const heroCta = isCcw ? 'Get Pre-Qualified' : isTickets ? 'Find My Trip' : isGym ? 'Get Started' : isInsurance ? 'Get a Quote' : isDryCleaner ? 'Schedule a Pickup' : isCustomService ? 'Get Started' : 'Book an Appointment'
   const heroCardOverlay = isTickets
     ? `Flights &bull; Holidays &bull; City Breaks &bull; Hotels`
     : isGym
@@ -497,6 +531,8 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; Insurance &amp; Financial Services`
     : isCcw
     ? `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; Permit Assistance`
+    : isDryCleaner
+    ? `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; Dry Cleaning &amp; Laundry`
     : isCustomService
     ? `${d.address_city ? `${esc(d.address_city)}, ${esc(d.address_state)}` : ''} &bull; ${esc(nicheLabel)}`
     : isTrajector
@@ -512,6 +548,8 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Licensed Agency</div><div style="font-size:12px;color:#666">${esc(d.brand)} authorized agent</div></div>`
     : isCcw
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Permit Assistance</div><div style="font-size:12px;color:#666">Guided application support</div></div>`
+    : isDryCleaner
+    ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Expert Garment Care</div><div style="font-size:12px;color:#666">Cleaning, pressing, and repairs</div></div>`
     : isCustomService
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">${esc(nicheLabel)} Specialist</div><div style="font-size:12px;color:#666">Personalized support</div></div>`
     : `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Verified Dealership</div><div style="font-size:12px;color:#666">Authorized ${esc(d.brand)} Dealer</div></div>`
@@ -522,6 +560,8 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Fast Quotes</div><div style="font-size:12px;color:#666">Compare rates in minutes</div></div>`
     : isCcw
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Fast Pre-Check</div><div style="font-size:12px;color:#666">Designed for quick qualification</div></div>`
+    : isDryCleaner
+    ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Pickup &amp; Delivery</div><div style="font-size:12px;color:#666">We can come to you</div></div>`
     : isCustomService
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Fast Response</div><div style="font-size:12px;color:#666">Confirmation within hours</div></div>`
     : `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">Same-Day Response</div><div style="font-size:12px;color:#666">Confirmation within hours</div></div>`
@@ -532,10 +572,12 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">SMS Updates</div><div style="font-size:12px;color:#666">Policy reminders &amp; confirmations</div></div>`
     : isCcw
     ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">SMS Updates</div><div style="font-size:12px;color:#666">Application reminders &amp; confirmations</div></div>`
+    : isDryCleaner
+    ? `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">SMS Ready Alerts</div><div style="font-size:12px;color:#666">Notified when your order is done</div></div>`
     : `<div><div style="font-size:14px;font-weight:500;color:#E8E8E8">SMS Confirmation</div><div style="font-size:12px;color:#666">Instant booking updates</div></div>`
 
   // How it works
-  const step1Title = isTickets ? 'Tell Us Where You Want To Go' : isGym ? 'Choose Your Activity' : isInsurance ? 'Choose Your Coverage' : isCcw ? 'See If You Qualify' : 'Tell Us What You Need'
+  const step1Title = isTickets ? 'Tell Us Where You Want To Go' : isGym ? 'Choose Your Activity' : isInsurance ? 'Choose Your Coverage' : isCcw ? 'See If You Qualify' : isDryCleaner ? 'Choose Your Service' : 'Tell Us What You Need'
   const step1Text = isTickets
     ? 'Send us your destination, dates, and how many travelers \u2014 flights, packages, city breaks, or anywhere else.'
     : isGym
@@ -544,10 +586,12 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? 'Tell us what type of insurance you need \u2014 auto, home, life, or a bundle of policies.'
     : isCcw
     ? 'Share the basic details needed to understand your concealed carry permit application path.'
+    : isDryCleaner
+    ? 'Dry cleaning, wash and fold, alterations, or pickup and delivery. Tell us what you need done.'
     : isCustomService
     ? `Tell us what kind of ${esc(nicheLabel.toLowerCase())} help you need and share any important details.`
     : "Select whether you'd like a test drive, service appointment, or have a general inquiry about a vehicle."
-  const step2Title = isTickets ? 'We Find the Cheapest Tickets' : isCcw ? 'Use the Application Portal' : isInsurance ? 'Pick a Time to Talk' : 'Pick Your Preferred Time'
+  const step2Title = isTickets ? 'We Find the Cheapest Tickets' : isCcw ? 'Use the Application Portal' : isInsurance ? 'Pick a Time to Talk' : isDryCleaner ? 'Pick a Pickup Time' : 'Pick Your Preferred Time'
   const step2Text = isTickets
     ? "Our travel agents hunt the best prices across every airline and operator — then send you the top picks."
     : isGym
@@ -556,23 +600,27 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? "Select a convenient time and we'll coordinate with the agency to schedule your consultation."
     : isCcw
     ? "Choose a time and we'll coordinate the next step for application assistance and firearms safety course access."
+    : isDryCleaner
+    ? "Choose when we should collect your garments, or when you plan to drop them off."
     : isCustomService
     ? "Select a convenient time and we'll coordinate with the business to match your schedule."
     : "Let us know when works best and we'll coordinate with the dealership to match your schedule."
-  const step3Title = isTickets ? 'Book in One Click' : isCcw ? 'Get Guided Support' : isInsurance ? 'Get Your Quote' : 'We Confirm Your Slot'
+  const step3Title = isTickets ? 'Book in One Click' : isCcw ? 'Get Guided Support' : isInsurance ? 'Get Your Quote' : isDryCleaner ? 'We Confirm and Text You' : 'We Confirm Your Slot'
   const step3Text = isTickets
     ? `Pick the deal you like and ${esc(d.dealership_name)} books it for you — confirmation lands in your inbox same day.`
     : isInsurance
     ? `We work directly with ${esc(d.dealership_name)} to get you the best rates and confirm your appointment via SMS.`
     : isCcw
     ? `We work directly with ${esc(d.dealership_name)} to confirm your request and send application-related updates by SMS if you opt in.`
+    : isDryCleaner
+    ? `We work directly with ${esc(d.dealership_name)} to confirm your request and send ready or delivery updates by SMS if you opt in.`
     : isCustomService
     ? `We work directly with ${esc(d.dealership_name)} to confirm your appointment, booking, or consultation via SMS.`
     : `We work directly with ${esc(d.dealership_name)} to get you the earliest available appointment and confirm via SMS.`
 
   // Booking form heading
-  const bookingHeading = isCcw ? 'Start Your Permit Pre-Check' : isTickets ? 'Get a Travel Quote' : isInsurance ? 'Get Your Quote' : isCustomService ? 'Request a Booking' : 'Book Your Appointment'
-  const submitLabel = isCcw ? 'Check My Eligibility' : isTickets ? 'Find Me a Deal' : isInsurance ? 'Submit Quote Request' : isCustomService ? 'Submit Request' : 'Submit Appointment Request'
+  const bookingHeading = isCcw ? 'Start Your Permit Pre-Check' : isTickets ? 'Get a Travel Quote' : isInsurance ? 'Get Your Quote' : isDryCleaner ? 'Schedule a Pickup' : isCustomService ? 'Request a Booking' : 'Book Your Appointment'
+  const submitLabel = isCcw ? 'Check My Eligibility' : isTickets ? 'Find Me a Deal' : isInsurance ? 'Submit Quote Request' : isDryCleaner ? 'Request Pickup' : isCustomService ? 'Submit Request' : 'Submit Appointment Request'
 
   // Form service options
   const serviceOptions = isTickets
@@ -592,6 +640,15 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
             <option>State Acceptance / Reciprocity Question</option>
             <option>Firearms Safety Course Access</option>
             <option>Application Status Question</option>
+            <option>General Question</option>`
+    : isDryCleaner
+    ? `<option value="" disabled selected>Select an option</option>
+            <option>Schedule a Pickup</option>
+            <option>Drop Off / Counter Service</option>
+            <option>Dry Cleaning</option>
+            <option>Wash &amp; Fold</option>
+            <option>Alterations / Repairs</option>
+            <option>Delivery Request</option>
             <option>General Question</option>`
     : isCustomService
     ? `<option value="" disabled selected>Select an option</option>
@@ -628,11 +685,13 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     ? 'Tell us more \u2014 current coverage, vehicles/property to insure, budget, etc.'
     : isCcw
     ? 'Tell us what you need help with - new permit, renewal, state acceptance questions, application support, or firearms safety course access.'
+    : isDryCleaner
+    ? 'Tell us more - garment types, stains, rush service, pickup or delivery address, and any special instructions.'
     : isCustomService
     ? 'Tell us more about what you need, your preferred timing, and any useful context\u2026'
     : 'Tell us more \u2014 vehicle of interest, type of service, etc.'
 
-  const infoSectionLabel = isTickets ? 'Travel Office' : isGym ? 'Gym Details' : isInsurance ? 'Agency Details' : isCcw ? 'Support Details' : isCustomService ? 'Business Details' : isTrajector ? 'Agent Details' : 'Dealership Details'
+  const infoSectionLabel = isTickets ? 'Travel Office' : isGym ? 'Gym Details' : isInsurance ? 'Agency Details' : isCcw ? 'Support Details' : isDryCleaner ? 'Shop Details' : isCustomService ? 'Business Details' : isTrajector ? 'Agent Details' : 'Dealership Details'
   const phoneLabel = isTickets ? 'Bookings' : isGym ? 'Phone' : isInsurance ? 'Office' : isCcw ? 'Support' : isCustomService ? 'Phone' : 'Sales'
 
   // Date validation script (no Sunday restriction for gyms, insurance agencies, or tickets)
@@ -723,7 +782,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
         ${d.hero_card_image ? `
           <div style="border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);box-shadow:0 40px 100px rgba(0,0,0,0.5)">
             <img src="${esc(d.hero_card_image)}" alt="" style="width:100%;height:380px;object-fit:cover;display:block" />
-            <div style="position:absolute;top:20px;right:20px;background:${esc(c)};color:#fff;padding:8px 16px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">Now Booking</div>
+            <div style="position:absolute;top:20px;right:20px;background:${esc(c)};color:#fff;padding:8px 16px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">${isDryCleaner ? 'Pickup Available' : 'Now Booking'}</div>
             <div style="position:absolute;bottom:20px;left:20px;right:20px;background:rgba(9,9,9,0.85);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:18px 20px;display:flex;align-items:center;gap:14px">
               ${d.logo_url ? `<img src="${esc(d.logo_url)}" alt="" style="width:44px;height:44px;object-fit:contain;background:#fff;border-radius:8px;padding:5px" />` : ''}
               <div>
@@ -760,7 +819,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     <div style="max-width:1000px;margin:0 auto">
       <p class="lp-reveal" style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:${esc(c)};margin-bottom:16px">Simple Process</p>
       <h2 class="fd lp-reveal lp-d1" style="font-size:clamp(32px,4vw,48px);font-weight:500;letter-spacing:-0.02em;margin-bottom:16px;line-height:1.1">How It Works</h2>
-      <p class="lp-reveal lp-d2" style="font-size:16px;color:#A0A0A0;max-width:500px;margin-bottom:64px;font-weight:300;line-height:1.7">Three easy steps to secure your spot at ${esc(d.dealership_name)}.</p>
+      <p class="lp-reveal lp-d2" style="font-size:16px;color:#A0A0A0;max-width:500px;margin-bottom:64px;font-weight:300;line-height:1.7">${isDryCleaner ? `Three easy steps to get your clothes taken care of at ${esc(d.dealership_name)}.` : `Three easy steps to secure your spot at ${esc(d.dealership_name)}.`}</p>
       <div class="lp-3col" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
         <div class="lp-reveal" style="padding:40px 32px;background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px">
           <div class="fd" style="font-size:48px;font-weight:400;color:${c}33;line-height:1;margin-bottom:20px">01</div>
@@ -821,11 +880,11 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
         </div>
         <div class="lp-form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
           <div>
-            <label style="display:block;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Preferred Date</label>
+            <label style="display:block;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">${isDryCleaner ? 'Preferred Pickup Date' : 'Preferred Date'}</label>
             <input class="lp-input" type="date" name="preferred_date" min="${todayMin}" onchange="handleDateChange(this)" />
           </div>
           <div>
-            <label style="display:block;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Preferred Time</label>
+            <label style="display:block;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">${isDryCleaner ? 'Preferred Pickup Time' : 'Preferred Time'}</label>
             <select class="lp-input" name="preferred_time">
               <option value="" disabled selected>Select a time</option>
               ${times.map(t => `<option>${t}</option>`).join('')}
@@ -838,6 +897,8 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
         </div>
 
         ${ageConfirmHTML}
+
+        ${legalConfirmationsHTML}
 
         ${smsConsentHTML}
 
@@ -973,7 +1034,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
       <h2 style="font-size:18px;font-weight:600;margin:36px 0 12px;color:#E8E8E8">4. Data Security</h2>
       <p style="margin-bottom:16px">We are committed to protecting your personal information using industry-standard security measures.</p>
       <h2 style="font-size:18px;font-weight:600;margin:36px 0 12px;color:#E8E8E8">5. SMS / Text Messaging Program</h2>
-      <p style="margin-bottom:16px">When you provide your mobile phone number through a form on this website and check the SMS consent box, you agree to receive recurring text messages from ${esc(d.legal_entity_name)}${d.dba_name ? ` (DBA ${esc(d.dba_name)})` : ''}, including ${isTickets ? 'booking confirmations, trip itinerary updates, travel reminders' : isCcw ? 'permit application assistance updates, qualification reminders, training-course access notifications' : 'appointment confirmations, reminders'}, and account-related notifications. Consent is not a condition of purchase.</p>
+      <p style="margin-bottom:16px">When you provide your mobile phone number through a form on this website and check the SMS consent box, you agree to receive recurring text messages from ${esc(d.legal_entity_name)}${d.dba_name ? ` (DBA ${esc(d.dba_name)})` : ''}, including ${isTickets ? 'booking confirmations, trip itinerary updates, travel reminders' : customerCareMessageTypes(d.business_type)}, and account-related notifications. Consent is not a condition of purchase.</p>
       <p style="margin-bottom:16px"><strong style="color:#E8E8E8;font-weight:500">Message frequency:</strong> Message frequency may vary based on your interactions with us.</p>
       <p style="margin-bottom:16px"><strong style="color:#E8E8E8;font-weight:500">Costs:</strong> Message and data rates may apply. Check with your mobile carrier for details.</p>
       <p style="margin-bottom:16px"><strong style="color:#E8E8E8;font-weight:500">Help:</strong> Reply HELP for help${d.phone_sms_help ? ` or call ${esc(d.phone_sms_help)}` : ''}${d.email ? ` or email ${esc(d.email)}` : ''}.</p>
@@ -1006,7 +1067,7 @@ export function generateStaticSite(d: Dealership): { file: string; data: string 
     <p style="font-size:13px;color:#333;margin-bottom:48px">Effective Date: ${esc(d.terms_effective_date || 'Sep 15, 2025')}</p>
     ${ccwAgeRequirementHTML}
     <ol style="list-style:decimal;padding-left:20px;font-size:14px;color:#666;line-height:1.85;font-weight:300">
-      <li style="margin-bottom:12px">This SMS program sends recurring automated ${isTickets ? 'booking confirmations, trip itinerary updates, travel reminders' : isCcw ? 'permit application assistance updates, qualification reminders, training-course access notifications' : 'appointment confirmations, service reminders, rescheduling notifications'}, and other account-related updates from ${esc(d.legal_entity_name)} ${d.dba_name ? `(DBA ${esc(d.dba_name)})` : ''} (website: ${esc(d.subdomain)}.visquanta.com) to customers who have opted in. No promotional or marketing messages are sent.</li>
+      <li style="margin-bottom:12px">This SMS program sends recurring automated ${isTickets ? 'booking confirmations, trip itinerary updates, travel reminders' : customerCareMessageTypes(d.business_type)}, and other account-related updates from ${esc(d.legal_entity_name)} ${d.dba_name ? `(DBA ${esc(d.dba_name)})` : ''} (website: ${esc(d.subdomain)}.visquanta.com) to customers who have opted in. No promotional or marketing messages are sent.</li>
       <li style="margin-bottom:12px">You can cancel at any time by replying STOP.</li>
       <li style="margin-bottom:12px">If you experience issues, reply HELP for assistance${d.phone_sms_help ? ` or call ${esc(d.phone_sms_help)}` : ''}${d.email ? ` or email ${esc(d.email)}` : ''}.</li>
       <li style="margin-bottom:12px">Carriers are not liable for delayed or undelivered messages.</li>

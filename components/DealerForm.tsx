@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Dealership, Vehicle, GymService, InsuranceProduct } from '@/lib/supabase'
 import { generateSmsTemplates } from '@/lib/sms-templates'
-import { BUSINESS_TYPE_OPTIONS, businessTypeLabel, isGymBusiness, isInsuranceBusiness, isServiceBusiness } from '@/lib/site-niche'
+import { BUSINESS_TYPE_OPTIONS, businessTypeLabel, defaultServicesForBusinessType, isDryCleanerBusiness, isGymBusiness, isInsuranceBusiness, isServiceBusiness } from '@/lib/site-niche'
 
 type Props = {
   dealership: Dealership | null
@@ -20,7 +20,7 @@ const DEFAULT_HOURS: Record<string, string> = {
 const BRANDS = ['Toyota','Ford','Chevrolet','Honda','Hyundai','Kia','Nissan','Volkswagen','Genesis','BMW','Mercedes-Benz','Audi','Lexus','Jeep','Ram','Dodge','Subaru','Mazda','Other']
 const GYM_BRANDS = ['Gym','Fitness Center','Yoga Studio','Pilates Studio','CrossFit Box','Other']
 const INSURANCE_BRANDS = ['State Farm','Allstate','GEICO','Progressive','Farmers','Liberty Mutual','Nationwide','USAA','American Family','Erie Insurance','Independent Agency','Other']
-const CUSTOM_BRANDS = ['Trading Education','CCW / Permit Assistance','Solar Energy','Disability Services','Travel / Tickets','Professional Services','Home Services','Other']
+const CUSTOM_BRANDS = ['Trading Education','CCW / Permit Assistance','Dry Cleaners','Solar Energy','Disability Services','Travel / Tickets','Professional Services','Home Services','Other']
 const VERIFY_POLL_SECONDS = 5
 const VERIFY_MAX_ATTEMPTS = 24
 
@@ -145,7 +145,17 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
         businessType
       )
       : {}
-    setForm(f => ({ ...f, business_type: businessType, ...sms }))
+    setForm(f => ({
+      ...f,
+      business_type: businessType,
+      page_title: f.dealership_name
+        ? (isDryCleanerBusiness(businessType) ? `Schedule a Pickup | ${f.dealership_name}` : `Book Your Appointment | ${f.dealership_name}`)
+        : f.page_title,
+      services: isDryCleanerBusiness(businessType) && (!f.services || f.services.length === 0)
+        ? defaultServicesForBusinessType(businessType)
+        : f.services,
+      ...sms,
+    }))
   }
 
   // ============================================
@@ -169,7 +179,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
       legal_entity_name: legal,
       dba_name: dba,
       email,
-      page_title: `Book Your Appointment | ${name}`,
+      page_title: isDryCleanerBusiness(form.business_type) ? `Schedule a Pickup | ${name}` : `Book Your Appointment | ${name}`,
       maps_url: `https://maps.google.com/?q=${encodeURIComponent(name + ' ' + (f.address_city || ''))}`,
       address_full: addr || f.address_full,
       ...sms,
@@ -503,7 +513,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
                   list="business-type-options"
                   value={form.business_type}
                   onChange={e => handleBusinessTypeChange(e.target.value)}
-                  placeholder="dealership, trading-education, solar, disability..."
+                  placeholder="dealership, drycleaners, trading-education, solar..."
                 />
                 <datalist id="business-type-options">
                   {BUSINESS_TYPE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -514,7 +524,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
                   <label className={labelClass}>{isGymType ? 'Business Name' : isInsuranceType ? 'Agency Name' : isServiceType ? 'Business Name' : 'Dealership Name'} *</label>
                   <input className={inputClass} value={form.dealership_name}
                     onChange={e => isEdit ? set('dealership_name', e.target.value) : handleNameChange(e.target.value)}
-                    placeholder={isGymType ? 'Body Kinetics' : isInsuranceType ? 'Smith Insurance Group' : isServiceType ? 'Acme Solar' : 'Cloninger Toyota'} />
+                    placeholder={isGymType ? 'Body Kinetics' : isInsuranceType ? 'Smith Insurance Group' : isDryCleanerBusiness(form.business_type) ? 'Main Street Cleaners' : isServiceType ? 'Acme Solar' : 'Cloninger Toyota'} />
                 </div>
                 <div>
                   <label className={labelClass}>{isGymType ? 'Type' : isInsuranceType ? 'Carrier / Network' : isServiceType ? 'Category' : 'Brand'} *</label>
@@ -673,7 +683,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
                   </div>
                   <div>
                     <label className={labelClass}>Service Name</label>
-                    <input className={inputClass} value={s.name} onChange={e => updateService(idx, 'name', e.target.value)} placeholder={isGymType ? 'Group Fitness' : 'Consultation'} />
+                    <input className={inputClass} value={s.name} onChange={e => updateService(idx, 'name', e.target.value)} placeholder={isGymType ? 'Group Fitness' : isDryCleanerBusiness(form.business_type) ? 'Dry Cleaning' : 'Consultation'} />
                   </div>
                   <div>
                     <label className={labelClass}>Description</label>
