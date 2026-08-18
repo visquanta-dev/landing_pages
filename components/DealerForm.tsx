@@ -92,6 +92,8 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
         ein: dealership.ein || '',
         brand_email: dealership.brand_email || '',
         source_website: dealership.source_website || '',
+        privacy_policy_url: dealership.hours?._privacy_url || '',
+        terms_url: dealership.hours?._terms_url || '',
         telnyx_brand_id: dealership.telnyx_brand_id || '',
         telnyx_phone_number: dealership.telnyx_phone_number || '',
         messaging_profile_id: dealership.messaging_profile_id || '',
@@ -144,6 +146,8 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
       ein: '',
       brand_email: s?.brand_email || '',
       source_website: s?.source_website || s?.source_url || '',
+      privacy_policy_url: s?.privacy_policy_url || '',
+      terms_url: s?.terms_url || '',
       telnyx_brand_id: '',
       telnyx_phone_number: '',
       messaging_profile_id: '',
@@ -461,11 +465,17 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
 
   // Save only (no deploy)
   function savePayload() {
-    const { shareExistingBrand, existingBrandId, ...rest } = form
+    const { shareExistingBrand, existingBrandId, privacy_policy_url, terms_url, telnyx_brand_id, ...rest } = form
     return {
       ...rest,
       source_website: httpsUrl(form.source_website),
-      telnyx_brand_id: shareExistingBrand ? (existingBrandId || form.telnyx_brand_id) : form.telnyx_brand_id,
+      hours: {
+        ...(form.hours || {}),
+        _privacy_url: httpsUrl(privacy_policy_url),
+        _terms_url: httpsUrl(terms_url),
+        ...(shareExistingBrand && existingBrandId ? { _telnyx_brand_id: existingBrandId } : {}),
+        ...(telnyx_brand_id ? { _telnyx_brand_id: telnyx_brand_id } : {}),
+      },
     }
   }
 
@@ -487,6 +497,8 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
         brandEmail: form.brand_email,
         sourceWebsite: form.source_website,
         existingBrandId: form.shareExistingBrand ? form.existingBrandId : '',
+        privacyPolicyUrl: form.privacy_policy_url,
+        termsUrl: form.terms_url,
         buyNumber: true,
       }),
     })
@@ -676,7 +688,7 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
               <hr className="border-white/[0.06]" />
               <p className="text-[11px] font-semibold text-white/40 uppercase tracking-widest">Business Hours</p>
               <div className="space-y-2">
-                {Object.entries(form.hours).map(([day, time]) => (
+                {Object.entries(form.hours).filter(([day]) => !day.startsWith('_')).map(([day, time]) => (
                   <div key={day} className="grid grid-cols-[120px_1fr] gap-3 items-center">
                     <span className="text-sm text-white/50 capitalize">{day}</span>
                     <input className={inputClass} value={time as string} onChange={e => setHour(day, e.target.value)} />
@@ -709,6 +721,16 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
               <div>
                 <label className={labelClass}>Original Website (https)</label>
                 <input className={inputClass} value={form.source_website || ''} onChange={e => set('source_website', e.target.value)} placeholder="https://theshop.com" />
+              </div>
+              <div>
+                <label className={labelClass}>Privacy Policy URL</label>
+                <input className={inputClass} value={form.privacy_policy_url || ''} onChange={e => set('privacy_policy_url', e.target.value)} placeholder="Shop page if they have one, otherwise leave blank" />
+                <p className="text-[11px] text-white/35 mt-1">If they already have a privacy page, paste it. If they do not, we use the generated https://{form.subdomain || 'shop'}.visquanta.com/privacy-policy</p>
+              </div>
+              <div>
+                <label className={labelClass}>Terms & Conditions URL</label>
+                <input className={inputClass} value={form.terms_url || ''} onChange={e => set('terms_url', e.target.value)} placeholder="Shop page if they have one, otherwise leave blank" />
+                <p className="text-[11px] text-white/35 mt-1">Same rule: their page if it exists. Generated page only when they do not have one.</p>
               </div>
               <label className="flex items-start gap-3 text-sm text-white/70">
                 <input
@@ -1188,6 +1210,8 @@ export default function DealerForm({ dealership, scrapeData, onClose }: Props) {
                 ['Brand email', form.brand_email],
                 ['Phone', form.phone_sales],
                 ['Website', httpsUrl(form.source_website)],
+                ['Privacy', httpsUrl(form.privacy_policy_url) || `https://${form.subdomain}.visquanta.com/privacy-policy`],
+                ['Terms', httpsUrl(form.terms_url) || `https://${form.subdomain}.visquanta.com/terms-and-conditions`],
                 ['City', [form.address_city, form.address_state].filter(Boolean).join(', ')],
               ].map(([label, value]) => (
                 <div key={label as string} className="flex gap-3">

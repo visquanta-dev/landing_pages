@@ -54,6 +54,8 @@ export async function POST(req: NextRequest) {
       meta_title: timedExtract('meta_title', () => extractMeta(html, 'title')),
       brand_email: timedExtract('brand_email', () => extractEmail(html)),
       source_website: targetUrl,
+      privacy_policy_url: timedExtract('privacy_policy_url', () => extractLegalUrl(html, baseUrl, 'privacy')),
+      terms_url: timedExtract('terms_url', () => extractLegalUrl(html, baseUrl, 'terms')),
       services: defaultServicesForBusinessType(businessType),
     }
 
@@ -649,6 +651,15 @@ function extractAllLargeImages(html: string, baseUrl: string): string[] {
     }
   }
   return images.slice(0, 20)
+}
+
+function extractLegalUrl(html: string, baseUrl: string, kind: 'privacy' | 'terms'): string {
+  const pattern = kind === 'privacy'
+    ? /href=["']([^"']*(?:privacy(?:-|\s)?policy|privacy)[^"']*)["']/i
+    : /href=["']([^"']*(?:terms(?:-|\s)?(?:and(?:-|\s)?conditions)?|terms-of-(?:use|service))[^"']*)["']/i
+  const href = matchOne(html, pattern)
+  if (!href) return ''
+  return resolveUrl(href, baseUrl)
 }
 
 function extractEmail(html: string): string {

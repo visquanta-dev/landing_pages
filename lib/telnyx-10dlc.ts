@@ -13,6 +13,8 @@ export type TelnyxCampaignBrand = {
   domain?: string | null
   website?: string | null
   businessType?: string | null
+  privacyPolicyUrl?: string | null
+  termsUrl?: string | null
 }
 
 function isCcwBusinessType(value?: string | null) {
@@ -82,8 +84,10 @@ export function buildCampaign(brand: TelnyxCampaignBrand): TelnyxCampaignPayload
     : firstValue(hostname(brand.domain), hostname(brand.website), 'visquanta.com')
   const brandLabel = dba && dba !== legalName ? `${legalName} (DBA ${dba})` : legalName
   const bookingUrl = httpsUrl(domain)
-  const privacyUrl = httpsUrl(`${domain}/privacy-policy`)
-  const termsUrl = httpsUrl(`${domain}/terms-and-conditions`)
+  const generatedPrivacy = httpsUrl(`${domain}/privacy-policy`)
+  const generatedTerms = httpsUrl(`${domain}/terms-and-conditions`)
+  const privacyUrl = httpsUrl(brand.privacyPolicyUrl) || generatedPrivacy
+  const termsUrl = httpsUrl(brand.termsUrl) || generatedTerms
   const helpContact = firstValue(brand.phone, brand.contactEmail, brand.email, privacyUrl)
   const isCcw = isCcwBusinessType(brand.businessType)
   const isTradingEducation = isTradingEducationBusinessType(brand.businessType)

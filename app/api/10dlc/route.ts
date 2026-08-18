@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
         const supabase = createServiceClient()
         const { data } = await supabase
           .from('dealerships')
-          .select('dealership_name, legal_entity_name, dba_name, phone_sales, email, brand_email, subdomain, address_city, address_state, business_type, telnyx_brand_id, telnyx_phone_number, messaging_profile_id, ein, source_website')
+          .select('dealership_name, legal_entity_name, dba_name, phone_sales, email, brand_email, subdomain, address_city, address_state, business_type, telnyx_phone_number, messaging_profile_id, ein, source_website, hours')
         dealerships = data || []
       } catch {
         // Supabase might not be configured, continue without it
@@ -142,6 +142,8 @@ export async function GET(req: NextRequest) {
           state: dealer?.address_state || null,
           dbaName: dealer?.dba_name || brand.displayName,
           businessType: dealer?.business_type || null,
+          privacyPolicyUrl: dealer?.hours?._privacy_url || null,
+          termsUrl: dealer?.hours?._terms_url || null,
         }
       })
 
@@ -316,14 +318,16 @@ async function createBrandAndNumber(payload: any) {
     }
   }
 
-  const updates: Record<string, string | null> = {
-    telnyx_brand_id: brandId,
-  }
+  const updates: Record<string, any> = {}
   if (ein) updates.ein = ein
   if (payload.brandEmail || dealer.brand_email) updates.brand_email = payload.brandEmail || dealer.brand_email
   if (payload.sourceWebsite || dealer.source_website) updates.source_website = httpsUrl(payload.sourceWebsite || dealer.source_website)
   if (phoneNumber) updates.telnyx_phone_number = phoneNumber
   if (messagingProfileId) updates.messaging_profile_id = messagingProfileId
+  const hours = { ...(dealer.hours || {}), _telnyx_brand_id: brandId }
+  if (payload.privacyPolicyUrl) hours._privacy_url = httpsUrl(payload.privacyPolicyUrl)
+  if (payload.termsUrl) hours._terms_url = httpsUrl(payload.termsUrl)
+  updates.hours = hours
 
   const { error: updateError } = await supabase
     .from('dealerships')
