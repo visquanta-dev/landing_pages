@@ -342,7 +342,7 @@ export default function DashboardPage() {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   {d.logo_url ? (
-                    <img src={d.logo_url} alt="" className="w-10 h-10 rounded-lg bg-white p-1 object-contain" />
+                    <img src={d.logo_url} alt="" className="w-10 h-10 rounded-lg bg-white p-1 object-contain" onError={(e) => e.currentTarget.remove()} />
                   ) : (
                     <div className="w-10 h-10 rounded-lg bg-white/[0.06] flex items-center justify-center text-lg">{isGymBusiness(d.business_type) ? '\uD83C\uDFCB\uFE0F' : isInsuranceBusiness(d.business_type) ? '\uD83D\uDEE1\uFE0F' : isCcwBusiness(d.business_type) ? '\uD83D\uDEE1\uFE0F' : isServiceBusiness(d.business_type) ? '\uD83D\uDCC5' : '\uD83C\uDFE2'}</div>
                   )}

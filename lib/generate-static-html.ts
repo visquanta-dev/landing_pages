@@ -3,6 +3,7 @@ import path from 'node:path'
 import type { Dealership } from './supabase'
 import { businessTypeLabel, customerCareMessageTypes, defaultServicesForBusinessType, isDryCleanerBusiness, isServiceBusiness, normalizeBusinessType } from './site-niche'
 import { DRYCLEANER_ASSETS, DRYCLEANER_STATIC_FILENAMES, dryCleanerServiceImage } from './drycleaner-assets'
+import { HIDE_BROKEN_HERO_CARD, HIDE_BROKEN_IMAGE, usableImageUrl } from './image-url'
 
 export type StaticSiteFile = {
   file: string
@@ -100,7 +101,7 @@ function navHTML(d: Dealership, c: string): string {
 
   return `<nav id="lp-nav">
     <a href="/" style="display:flex;align-items:center;gap:14px;text-decoration:none">
-      ${d.logo_url ? `<img src="${esc(d.logo_url)}" alt="${esc(d.dealership_name)}" style="height:40px;object-fit:contain" />` : ''}
+      ${usableImageUrl(d.logo_url) ? `<img src="${esc(usableImageUrl(d.logo_url))}" alt="${esc(d.dealership_name)}" style="height:40px;object-fit:contain" onerror="${HIDE_BROKEN_IMAGE}" />` : ''}
       <span class="fd" style="font-size:20px;font-weight:600;color:#FAFAFA;letter-spacing:-0.01em">${esc(d.dealership_name)}</span>
     </a>
     <div class="lp-nav-links" style="display:flex;gap:36px;align-items:center">
@@ -177,8 +178,9 @@ export function generateStaticSite(d: Dealership): StaticSiteFile[] {
   const isDryCleaner = isDryCleanerBusiness(d.business_type)
   const nicheLabel = businessTypeLabel(d.business_type)
   const isCustomService = isServiceBusiness(d.business_type) && !isGym && !isTickets
-  const heroBg = d.hero_bg_image || (isDryCleaner ? DRYCLEANER_ASSETS.heroBg : '')
-  const heroCard = d.hero_card_image || (isDryCleaner ? DRYCLEANER_ASSETS.heroCard : '')
+  const logoUrl = usableImageUrl(d.logo_url)
+  const heroBg = usableImageUrl(d.hero_bg_image) || (isDryCleaner ? DRYCLEANER_ASSETS.heroBg : '')
+  const heroCard = usableImageUrl(d.hero_card_image) || (isDryCleaner ? DRYCLEANER_ASSETS.heroCard : '')
 
   const dealerTimes = ['9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM','4:30 PM','5:00 PM','5:30 PM','6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM']
   const gymTimes = ['5:00 AM','5:30 AM','6:00 AM','6:30 AM','7:00 AM','7:30 AM','8:00 AM','8:30 AM',...dealerTimes]
@@ -238,7 +240,7 @@ export function generateStaticSite(d: Dealership): StaticSiteFile[] {
           ${customServices.map((s, i) => `
             <div class="lp-reveal${i > 0 ? ` lp-d${i}` : ''}" style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px;overflow:hidden">
               ${s.image
-                ? `<img src="${esc(s.image)}" alt="" style="width:100%;height:180px;object-fit:cover;display:block" />`
+                ? `<img src="${esc(s.image)}" alt="" style="width:100%;height:180px;object-fit:cover;display:block" onerror="${HIDE_BROKEN_IMAGE}" />`
                 : `<div style="font-size:48px;padding:40px 32px 0;text-align:center">${s.icon}</div>`}
               <div style="padding:${s.image ? '28px 32px 40px' : '20px 32px 40px'};text-align:center">
                 <p style="font-size:18px;font-weight:600;margin-bottom:10px">${esc(s.name)}</p>
@@ -310,7 +312,7 @@ export function generateStaticSite(d: Dealership): StaticSiteFile[] {
           ${vehicles.map((v, i) => `
             <div class="lp-reveal${i > 0 ? ` lp-d${i}` : ''}" style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px;overflow:hidden">
               <div style="height:240px;background:linear-gradient(145deg,#0d0d0d,#1a1a1a);display:flex;align-items:center;justify-content:center;position:relative">
-                <img src="${esc(v.image_url)}" alt="${esc(v.name)}" style="width:88%;max-height:200px;object-fit:contain;filter:drop-shadow(0 16px 40px rgba(0,0,0,0.6))" />
+                <img src="${esc(v.image_url)}" alt="${esc(v.name)}" style="width:88%;max-height:200px;object-fit:contain;filter:drop-shadow(0 16px 40px rgba(0,0,0,0.6))" onerror="${HIDE_BROKEN_IMAGE}" />
               </div>
               <div style="padding:24px 28px 28px">
                 <p style="font-size:18px;font-weight:600;margin-bottom:4px">${esc(v.name)}</p>
@@ -769,7 +771,7 @@ export function generateStaticSite(d: Dealership): StaticSiteFile[] {
   <!-- HERO -->
   <section style="position:relative;min-height:100vh;display:flex;align-items:center;overflow:hidden">
     <div style="position:absolute;inset:0">
-      ${heroBg ? `<img src="${esc(heroBg)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:${isDryCleaner ? 'brightness(0.42) saturate(0.85)' : 'brightness(0.3) saturate(0.7)'}" />` : ''}
+      ${heroBg ? `<img src="${esc(heroBg)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:${isDryCleaner ? 'brightness(0.42) saturate(0.85)' : 'brightness(0.3) saturate(0.7)'}" onerror="${HIDE_BROKEN_IMAGE}" />` : ''}
       <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 20% 50%,${c}10 0%,transparent 60%),linear-gradient(180deg,rgba(9,9,9,0.2) 0%,rgba(9,9,9,0.5) 50%,#090909 100%)"></div>
       <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.012) 1px,transparent 1px);background-size:80px 80px"></div>
     </div>
@@ -795,11 +797,11 @@ export function generateStaticSite(d: Dealership): StaticSiteFile[] {
       </div>
       <div class="lp-hero-visual anim-up anim-d3" style="position:relative">
         ${heroCard ? `
-          <div style="border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);box-shadow:0 40px 100px rgba(0,0,0,0.5)">
-            <img src="${esc(heroCard)}" alt="" style="width:100%;height:380px;object-fit:cover;display:block" />
+          <div data-hero-card="true" style="border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);box-shadow:0 40px 100px rgba(0,0,0,0.5)">
+            <img src="${esc(heroCard)}" alt="" style="width:100%;height:380px;object-fit:cover;display:block" onerror="${HIDE_BROKEN_HERO_CARD}" />
             <div style="position:absolute;top:20px;right:20px;background:${esc(c)};color:#fff;padding:8px 16px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">${isDryCleaner ? 'Pickup Available' : 'Now Booking'}</div>
             <div style="position:absolute;bottom:20px;left:20px;right:20px;background:rgba(9,9,9,0.85);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:18px 20px;display:flex;align-items:center;gap:14px">
-              ${d.logo_url ? `<img src="${esc(d.logo_url)}" alt="" style="width:44px;height:44px;object-fit:contain;background:#fff;border-radius:8px;padding:5px" />` : ''}
+              ${logoUrl ? `<img src="${esc(logoUrl)}" alt="" style="width:44px;height:44px;object-fit:contain;background:#fff;border-radius:8px;padding:5px" onerror="${HIDE_BROKEN_IMAGE}" />` : ''}
               <div>
                 <strong style="font-size:15px;display:block;margin-bottom:2px">${esc(d.dealership_name)}</strong>
                 <span style="font-size:12px;color:#666">${heroCardOverlay}</span>
